@@ -5,19 +5,67 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# Load the packages neeed and set working directory
+setwd("~/Github/Utah_recidivism_model/")
+library(dplyr)
+library(ggplot2)
+library(printr)
 ```
 
-## GitHub Documents
+## About This Model
+The following code is to analyze data and make ballpark predictions about how much a reduction in recidivism could potentially save the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD). 
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated. 
 
-## Including Code
+### Assumptions
+The greatest challenge in making predictions about the costs and benefits of the COD population is that the Justice Reinvestment Initiative (JRI) is old enough to affect outcomes in areas like recidivism, prison terms, crime frequencies, and parole sentences, but not old enough to collect reliable data on those effects. Therefore, I am forced to make several assumptions about the likely effects of the JRI on these outcomes. I will try to list some of the important ones below, but there are other assumptions throughout this notebook.       
 
-You can include R code in the document as follows:
 
-```{r cars}
-summary(cars)
+```{r}
+# A 10% reduction in recidivism 
+recid_reduction_JRI <- .10
+
+# One big change is that offenders can get what's called earned time credits while incarcerated, 
+# which can also impact their length of stay (reduce it).
+# A 20% reduction in mean time served seems reasonable
+time_served_scale_JRI <- .8
 ```
+
+
+## About the data
+The two main datasets that inform this model are, 
+* Prison Terms, which contain crime frequencies, their estimated average prison sentence, and an estimate of the direct taxpayer costs associated with that crime
+* Survival Rates, which are the kaplan-meier curves from national data, extrapolated to fit Utah's trends 
+
+### Prison Terms
+I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the "frequency_of_crime" and added parole violations, which used to account for 70% of returns. In the model, "frequency" is used when the person is on parole, and "frequency_of_crime" is used when they are not. The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which I scale down 20% (as described above). Finally, the [Cost of Crime Report](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) contains estimates of the taxpayer costs for most categories (extrapolated for parole violations).    
+
+
+```{r}
+prison_terms <- read.csv("./clean_data/prison_terms.csv", stringsAsFactors = FALSE) %>% 
+  mutate(mean_time_served = round(mean_time_served))
+
+# I do these so that I can add a blank in the function below
+prison_terms[8,1] <- ""
+
+# replcace NAs with 0
+prison_terms$frequency[is.na(prison_terms$frequency)] <- 0
+prison_terms$frequency_of_crime[is.na(prison_terms$frequency_of_crime)] <- 0
+
+# Scale down time served to reflect (guess)timated effects of the JRI
+prison_terms$mean_time_served <- prison_terms$mean_time_served * time_served_scale_JRI
+
+# Another big change from the JRI is that prison sentences for technical violations are capped
+# So we change the 15-month mean to a 2-month one
+# page 39: http://www.utah.gov/pmn/files/172049.pdf
+prison_terms$mean_time_served[prison_terms$offense_type == "Parole_Violation"] <- 2
+
+
+head(prison_terms, 10)
+```
+
+
+
+
 
 ## Including Plots
 
