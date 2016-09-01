@@ -4,13 +4,15 @@ Utah Recidivism Model
 About This Model
 ----------------
 
-The following code is to analyze data and make ballpark predictions about how much a reduction in recidivism could potentially save the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD). As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong),
+The following code is to analyze data and make ballpark predictions about how much a parolee, on average, will cost the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD).
+
+### Assumptions
+
+As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong),
 
 > All models are wrong but some are useful.
 
 I hope this one is useful.
-
-### Assumptions
 
 The greatest challenge in making predictions about the costs and benefits of the COD population is that the Justice Reinvestment Initiative (JRI) is old enough to affect outcomes in areas like recidivism, prison terms, crime frequencies, and parole sentences, but not old enough to collect reliable data on those effects. Therefore, I am forced to make several assumptions about the likely effects of the JRI on these outcomes. I will try to list some of the important ones below, but there are other assumptions throughout this notebook.
 
@@ -450,7 +452,7 @@ When run for a single person, the rows and columns look like this (although the 
 | 1     | 1            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 2     | 2            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 3     | 3            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 4     | 4            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
+| 4     | 4            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 1               | 1647                  | 272.06               | 325                    |
 | 5     | 5            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 6     | 6            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 7     | 7            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
@@ -519,32 +521,36 @@ When run for a period of 5 years with 1,000 agents, the first few rows look like
 
 |  prison\_time|  months\_free|  prison\_costs|  avg\_prison\_cost\_per\_yr|  arrests|  total\_costs|  avg\_total\_cost\_per\_yr|  avg\_other\_cost\_per\_yr|
 |-------------:|-------------:|--------------:|---------------------------:|--------:|-------------:|--------------------------:|--------------------------:|
-|            25|            35|          62500|                       12500|        1|      92634.18|                  18526.836|                   6026.836|
-|             0|            60|              0|                           0|        0|      28200.43|                   5640.086|                   5640.086|
-|             2|            58|           5000|                        1000|        1|      37997.66|                   7599.532|                   6599.532|
-|            50|            10|         125000|                       25000|        1|     140922.60|                  28184.520|                   3184.520|
-|             0|            60|              0|                           0|        0|      28923.28|                   5784.656|                   5784.656|
-|             2|            58|           5000|                        1000|        1|      36894.78|                   7378.956|                   6378.956|
-|             4|            56|          10000|                        2000|        2|      54225.51|                  10845.102|                   8845.102|
-|            11|            49|          27500|                        5500|        1|      57351.23|                  11470.246|                   5970.246|
-|            32|            28|          80000|                       16000|        1|     164145.13|                  32829.026|                  16829.026|
-|             4|            56|          10000|                        2000|        2|      50438.02|                  10087.604|                   8087.604|
+|             8|            52|          20000|                        4000|        2|      55894.65|                  11178.930|                   7178.930|
+|             0|            60|              0|                           0|        0|      35511.28|                   7102.256|                   7102.256|
+|             0|            60|              0|                           0|        0|      33556.23|                   6711.246|                   6711.246|
+|             8|            52|          20000|                        4000|        4|      66046.13|                  13209.226|                   9209.226|
+|             0|            60|              0|                           0|        0|      29954.18|                   5990.836|                   5990.836|
+|            23|            37|          57500|                       11500|        3|      98965.22|                  19793.044|                   8293.044|
+|             0|            60|              0|                           0|        0|      29231.33|                   5846.266|                   5846.266|
+|             4|            56|          10000|                        2000|        2|      55041.69|                  11008.338|                   9008.338|
+|            37|            23|          92500|                       18500|        1|     116471.08|                  23294.216|                   4794.216|
+|             0|            60|              0|                           0|        0|      28615.23|                   5723.046|                   5723.046|
 
 Results
 =======
 
 Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number.
 
-In the latest simulation of 1,000 agents, the average total cost per parolee per year was $14,302. The standard deviation was $7,991. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
+In the latest simulation of 1,000 agents, the average total cost per parolee per year was **$14,379**, with a standard deviation of $7,922. The median was $13,580. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
 
 ![](Utah_recidivism_model_files/figure-markdown_github/cost-1.png)
 
-The maximum cost in this simulation was $42,621. This would likely be someone who bounced in and out of prison very rapidly. On the other end are parolees who cost the state less than $6,939, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+The maximum cost in this simulation was $44,410. This would likely be someone who spent the majority of the 5 years in prison. On the other end are parolees who cost the state less than $6,669, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
 
-Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of $30,000 per year, or 55.7% of the total cost.
+Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of $7,974 per year, or 55.5% of the total cost.
 
 ![](Utah_recidivism_model_files/figure-markdown_github/cost2-1.png)
 
-This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, several returned more than twice:
+This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, 18.6% returned more than twice:
 
 ![](Utah_recidivism_model_files/figure-markdown_github/returns-1.png)
+
+### With Treatment
+
+Assuming a recidivism reduction of 15%, instead of approximately $14,000, the average parolee will cost the state of Utah **$12,398**.

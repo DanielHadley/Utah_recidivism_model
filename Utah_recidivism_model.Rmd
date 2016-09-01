@@ -15,14 +15,17 @@ library(scales)
 ```
 
 ## About This Model
-The following code is to analyze data and make ballpark predictions about how much a reduction in recidivism could potentially save the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD). As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong), 
+The following code is to analyze data and make ballpark predictions about how much a parolee, on average, will cost the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD).
+
+
+### Assumptions
+As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong), 
 
 > All models are wrong but some are useful.
 
 I hope this one is useful. 
 
 
-### Assumptions
 The greatest challenge in making predictions about the costs and benefits of the COD population is that the Justice Reinvestment Initiative (JRI) is old enough to affect outcomes in areas like recidivism, prison terms, crime frequencies, and parole sentences, but not old enough to collect reliable data on those effects. Therefore, I am forced to make several assumptions about the likely effects of the JRI on these outcomes. I will try to list some of the important ones below, but there are other assumptions throughout this notebook.       
 
 
@@ -586,7 +589,7 @@ kable(head(multi_agent_test, 10), digits = 3)
 # Results
 Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number. 
 
-In the latest simulation of 1,000 agents, the average total cost per parolee per year was `r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`. The standard deviation was `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
+In the latest simulation of 1,000 agents, the average total cost per parolee per year was **`r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`**, with a standard deviation of `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`. The median was `r dollar(round(median(multi_agent_test$avg_total_cost_per_yr)))`. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
 
 ```{r cost, echo=FALSE}
 # plot the hist
@@ -597,9 +600,9 @@ ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) +
   scale_x_continuous(labels=dollar)
 ```
 
-The maximum cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who bounced in and out of prison very rapidly. On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+The maximum cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
 
-Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(max(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
+Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
 
 ```{r cost2, echo=FALSE}
 # plot the hist
@@ -610,7 +613,13 @@ ggplot(multi_agent_test, aes(avg_prison_cost_per_yr)) +
   scale_x_continuous(labels=dollar)
 ```
 
-This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, several returned more than twice:
+```{r, echo=FALSE}
+more_than_two <- multi_agent_test %>% 
+  filter(arrests > 2) %>% 
+  nrow()
+```
+
+This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, `r percent(more_than_two / nrow(multi_agent_test))` returned more than twice:
 
 ```{r returns, echo=FALSE}
 # plot the hist
@@ -619,3 +628,16 @@ ggplot(multi_agent_test, aes(arrests)) +
   ylab("# of Simulations") +
   xlab("# of re-arrests")
 ```
+
+
+### With Treatment
+```{r, echo=FALSE}
+treatment_recid_reduction <- .15
+
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = treatment_recid_reduction)
+
+multi_agent_test <- sim_multi_agents(1000, 60)
+
+```
+
+Assuming a recidivism reduction of `r percent(treatment_recid_reduction)`, instead of approximately $14,000, the average parolee will cost the state of Utah **`r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`**. 
