@@ -11,6 +11,7 @@ library(dplyr)
 library(ggplot2)
 library(printr)
 library(knitr)
+library(scales)
 ```
 
 ## About This Model
@@ -146,7 +147,8 @@ ggplot(all_together, aes(months)) +
   geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
   geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
   geom_line(aes(y = survival_rates.cumulative_percent, colour = "National Trend")) +
-  ylab("Cumulative Probability of Recidivism")
+  ylab("Percent Who Recidivate") +
+  scale_y_continuous(labels=percent)
 
 # And clean things up
 rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
@@ -529,6 +531,7 @@ sim_multi_agents <- function(n_agents, n_months){
   df <- data.frame(prison_time=numeric(0),
                    months_free=numeric(0),
                    prison_costs=numeric(0),
+                   avg_prison_cost_per_yr=numeric(0),
                    arrests=numeric(0),
                    total_costs=numeric(0),
                    avg_total_cost_per_yr=numeric(0))
@@ -543,6 +546,7 @@ sim_multi_agents <- function(n_agents, n_months){
     a.prison_time <- sum(as.numeric(single_agent$is_in_prison))
     a.months_free <- 60 - a.prison_time
     a.total_prison_costs <- sum(as.numeric(single_agent$total_prison_costs))
+    a.avg_prison_cost_per_yr <- a.total_prison_costs / (n_months / 12)
     a.arrests <- sum(as.numeric(single_agent$rearrested_or_not))
     
     # Get total costs
@@ -557,10 +561,13 @@ sim_multi_agents <- function(n_agents, n_months){
     
     # add month to the data frame
     df[agent,] <- 
-      c(a.prison_time, a.months_free, a.total_prison_costs, a.arrests, a.total_costs,
-        a.avg_total_cost_per_yr)
+      c(a.prison_time, a.months_free, a.total_prison_costs, a.avg_prison_cost_per_yr,
+        a.arrests, a.total_costs, a.avg_total_cost_per_yr)
     
   }
+  
+  df <- df %>% 
+    mutate(avg_other_cost_per_yr = avg_total_cost_per_yr - avg_prison_cost_per_yr)
   
   # output results
   return (df)
@@ -573,4 +580,42 @@ When run for a period of 5 years with 1,000 agents, the first few rows look like
 ```{r, echo=FALSE}
 multi_agent_test <- sim_multi_agents(n_agents = 1000, n_months = 60)
 kable(head(multi_agent_test, 10), digits = 3)
+```
+
+
+# Results
+Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number. 
+
+In the latest simulation of 1,000 agents, the average total cost per parolee per year was `r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`. The standard deviation was `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
+
+```{r cost, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  ylab("# of Simulations") +
+  xlab("Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
+```
+
+The maximum cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who bounced in and out of prison very rapidly. On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+
+Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(max(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
+
+```{r cost2, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(avg_prison_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  ylab("# of Simulations") +
+  xlab("Average Total Cost Per Year: Prison") +
+  scale_x_continuous(labels=dollar)
+```
+
+This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, several returned more than twice:
+
+```{r returns, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(arrests)) + 
+  geom_bar(fill="#c0392b", alpha=0.75, color = "white") +
+  ylab("# of Simulations") +
+  xlab("# of re-arrests")
 ```

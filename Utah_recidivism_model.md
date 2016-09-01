@@ -456,7 +456,7 @@ When run for a single person, the rows and columns look like this (although the 
 | 7     | 7            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 8     | 8            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 9     | 9            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 10    | 10           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 1               | 1647                  | 272.06               | 325                    |
+| 10    | 10           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 11    | 11           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 | 12    | 12           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
 
@@ -471,6 +471,7 @@ sim_multi_agents <- function(n_agents, n_months){
   df <- data.frame(prison_time=numeric(0),
                    months_free=numeric(0),
                    prison_costs=numeric(0),
+                   avg_prison_cost_per_yr=numeric(0),
                    arrests=numeric(0),
                    total_costs=numeric(0),
                    avg_total_cost_per_yr=numeric(0))
@@ -485,6 +486,7 @@ sim_multi_agents <- function(n_agents, n_months){
     a.prison_time <- sum(as.numeric(single_agent$is_in_prison))
     a.months_free <- 60 - a.prison_time
     a.total_prison_costs <- sum(as.numeric(single_agent$total_prison_costs))
+    a.avg_prison_cost_per_yr <- a.total_prison_costs / (n_months / 12)
     a.arrests <- sum(as.numeric(single_agent$rearrested_or_not))
     
     # Get total costs
@@ -499,10 +501,13 @@ sim_multi_agents <- function(n_agents, n_months){
     
     # add month to the data frame
     df[agent,] <- 
-      c(a.prison_time, a.months_free, a.total_prison_costs, a.arrests, a.total_costs,
-        a.avg_total_cost_per_yr)
+      c(a.prison_time, a.months_free, a.total_prison_costs, a.avg_prison_cost_per_yr,
+        a.arrests, a.total_costs, a.avg_total_cost_per_yr)
     
   }
+  
+  df <- df %>% 
+    mutate(avg_other_cost_per_yr = avg_total_cost_per_yr - avg_prison_cost_per_yr)
   
   # output results
   return (df)
@@ -512,15 +517,34 @@ sim_multi_agents <- function(n_agents, n_months){
 
 When run for a period of 5 years with 1,000 agents, the first few rows look like this (again, with data that varies based on the results of the individual simulations):
 
-|  prison\_time|  months\_free|  prison\_costs|  arrests|  total\_costs|  avg\_total\_cost\_per\_yr|
-|-------------:|-------------:|--------------:|--------:|-------------:|--------------------------:|
-|             0|            60|              0|        0|      28200.43|                   5640.086|
-|             0|            60|              0|        0|      25013.18|                   5002.636|
-|            23|            37|          57500|        3|      94024.22|                  18804.844|
-|            43|            17|         107500|        2|     135707.02|                  27141.404|
-|            22|            38|          55000|        4|      98579.28|                  19715.856|
-|            23|            37|          57500|        5|     107226.92|                  21445.384|
-|             0|            60|              0|        0|      31079.63|                   6215.926|
-|            19|            41|          47500|        2|      75165.35|                  15033.070|
-|            18|            42|          45000|        3|      85884.46|                  17176.892|
-|             0|            60|              0|        0|      30262.23|                   6052.446|
+|  prison\_time|  months\_free|  prison\_costs|  avg\_prison\_cost\_per\_yr|  arrests|  total\_costs|  avg\_total\_cost\_per\_yr|  avg\_other\_cost\_per\_yr|
+|-------------:|-------------:|--------------:|---------------------------:|--------:|-------------:|--------------------------:|--------------------------:|
+|            25|            35|          62500|                       12500|        1|      92634.18|                  18526.836|                   6026.836|
+|             0|            60|              0|                           0|        0|      28200.43|                   5640.086|                   5640.086|
+|             2|            58|           5000|                        1000|        1|      37997.66|                   7599.532|                   6599.532|
+|            50|            10|         125000|                       25000|        1|     140922.60|                  28184.520|                   3184.520|
+|             0|            60|              0|                           0|        0|      28923.28|                   5784.656|                   5784.656|
+|             2|            58|           5000|                        1000|        1|      36894.78|                   7378.956|                   6378.956|
+|             4|            56|          10000|                        2000|        2|      54225.51|                  10845.102|                   8845.102|
+|            11|            49|          27500|                        5500|        1|      57351.23|                  11470.246|                   5970.246|
+|            32|            28|          80000|                       16000|        1|     164145.13|                  32829.026|                  16829.026|
+|             4|            56|          10000|                        2000|        2|      50438.02|                  10087.604|                   8087.604|
+
+Results
+=======
+
+Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number.
+
+In the latest simulation of 1,000 agents, the average total cost per parolee per year was $14,302. The standard deviation was $7,991. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
+
+![](Utah_recidivism_model_files/figure-markdown_github/cost-1.png)
+
+The maximum cost in this simulation was $42,621. This would likely be someone who bounced in and out of prison very rapidly. On the other end are parolees who cost the state less than $6,939, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+
+Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of $30,000 per year, or 55.7% of the total cost.
+
+![](Utah_recidivism_model_files/figure-markdown_github/cost2-1.png)
+
+This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, several returned more than twice:
+
+![](Utah_recidivism_model_files/figure-markdown_github/returns-1.png)
