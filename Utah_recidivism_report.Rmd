@@ -1,22 +1,35 @@
-Utah Recidivism Model
-================
+---
+title: "Utah Recidivism Model"
+output: github_document
+---
 
-About This Model
-----------------
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load the packages neeed and set working directory
+setwd("~/Github/Utah_recidivism_model/")
+library(dplyr)
+library(ggplot2)
+library(printr)
+library(knitr)
+library(scales)
+```
 
+## About This Model
 The following code is to analyze data and make ballpark predictions about how much a parolee, on average, will cost the State of Utah. We are specifically interested in parolees with co-occuring disorders (COD).
 
-### Assumptions
 
-As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong),
+### Assumptions
+As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong), 
 
 > All models are wrong but some are useful.
 
-I hope this one is useful.
+I hope this one is useful. 
 
-The greatest challenge in making predictions about the costs and benefits of the COD population is that the Justice Reinvestment Initiative (JRI) is old enough to affect outcomes in areas like recidivism, prison terms, crime frequencies, and parole sentences, but not old enough to collect reliable data on those effects. Therefore, I am forced to make several assumptions about the likely effects of the JRI on these outcomes. I will try to list some of the important ones below, but there are other assumptions throughout this notebook.
 
-``` r
+The greatest challenge in making predictions about the costs and benefits of the COD population is that the Justice Reinvestment Initiative (JRI) is old enough to affect outcomes in areas like recidivism, prison terms, crime frequencies, and parole sentences, but not old enough to collect reliable data on those effects. Therefore, I am forced to make several assumptions about the likely effects of the JRI on these outcomes. I will try to list some of the important ones below, but there are other assumptions throughout this notebook.       
+
+
+```{r}
 # A 10% reduction in recidivism 
 recid_reduction_JRI <- .10
 
@@ -37,20 +50,19 @@ parole_violation_MTS_JRI <- 2
 parole_length_JRI <- 18
 ```
 
-About the data
---------------
 
-The two main datasets that inform this model are,
+## About the data
+The two main datasets that inform this model are, 
 
--   Prison Terms, which contain crime frequencies, their estimated average prison sentence, and an estimate of the direct taxpayer costs associated with that crime
+* Prison Terms, which contain crime frequencies, their estimated average prison sentence, and an estimate of the direct taxpayer costs associated with that crime
 
--   Survival Rates, which are the kaplan-meier curves from national data, extrapolated to fit Utah's trends
+* Survival Rates, which are the kaplan-meier curves from national data, extrapolated to fit Utah's trends 
 
 ### Prison Terms
+I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the `frequency_of_crime` and added parole violations, which used to account for 70% of returns. In the model, `frequency` is used when the person is on parole, and `frequency_of_crime` is used when they are not. The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which I scale down 20% to reflect changes from the JRI (as described above). Finally, the [Cost of Crime Report](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) contains estimates of the taxpayer costs for most categories (extrapolated for parole violations).    
 
-I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the `frequency_of_crime` and added parole violations, which used to account for 70% of returns. In the model, `frequency` is used when the person is on parole, and `frequency_of_crime` is used when they are not. The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which I scale down 20% to reflect changes from the JRI (as described above). Finally, the [Cost of Crime Report](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) contains estimates of the taxpayer costs for most categories (extrapolated for parole violations).
 
-``` r
+```{r}
 prison_terms <- read.csv("./clean_data/prison_terms.csv", stringsAsFactors = FALSE) %>% 
   mutate(mean_time_served = round(mean_time_served)) %>% 
   select(-assumptions)
@@ -72,36 +84,93 @@ prison_terms$mean_time_served[prison_terms$offense_type == "Parole_Violation"] <
 kable(head(prison_terms, 10), digits = 3)
 ```
 
-| offense\_type     |  mean\_time\_served|  frequency\_of\_crime|  frequency|  court\_cost|  police\_cost|
-|:------------------|-------------------:|---------------------:|----------:|------------:|-------------:|
-| Murder            |               167.2|                 0.017|      0.005|        62037|          4509|
-| Person            |                49.6|                 0.238|      0.070|         5443|          4509|
-| Sex               |                58.4|                 0.067|      0.020|         5443|          4509|
-| Property          |                18.4|                 0.314|      0.093|         2284|           880|
-| Drug              |                14.4|                 0.221|      0.065|         2284|           880|
-| Other             |                13.6|                 0.143|      0.042|         2284|           880|
-| Parole\_Violation |                 2.0|                 0.000|      0.705|         2284|           880|
-|                   |                  NA|                 0.000|      0.000|           NA|            NA|
 
 ### Survival Rates
+The kaplan-meier curves come from this [BJS Report](http://www.bjs.gov/index.cfm?ty=pbdetail&iid=4986) of national trends. I do not have clean data showing the exact Utah curves (nor does such data exist for the post-JRI era), but I was encouraged to learn that the 3-year outcomes for Utah pre-JRI were very similar to national trends. Threfore, I assume similar curves, and simply increase the recidivism rates to better reflect our COD demographic, and then decrease them in an attempt to reflect the COD demographic post JRI. In all likliehood the actual curves for the post-JRI period will be different; but these provide decent estimates.  
 
-The kaplan-meier curves come from this [BJS Report](http://www.bjs.gov/index.cfm?ty=pbdetail&iid=4986) of national trends. I do not have clean data showing the exact Utah curves (nor does such data exist for the post-JRI era), but I was encouraged to learn that the 3-year outcomes for Utah pre-JRI were very similar to national trends. Threfore, I assume similar curves, and simply increase the recidivism rates to better reflect our COD demographic, and then decrease them in an attempt to reflect the COD demographic post JRI. In all likliehood the actual curves for the post-JRI period will be different; but these provide decent estimates.
 
-![](Utah_recidivism_model_files/figure-markdown_github/pressure-1.png)
+```{r survival, include=FALSE}
+## Load and clean the data ##
+# These are the national data
+survival_rates <- read.csv("./clean_data/mschpprts05f02.csv", 
+                           stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state = as.numeric(X.1),
+         cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
 
-A Stochastic Agent-based Model
-------------------------------
 
-Although this does not have all of the features commonly associated with an [agent-based model](https://en.wikipedia.org/wiki/Agent-based_model), I use this term to describe the two-pronged process followed below:
+# Here are imputed survival rates. Basically, the data that Julie sent suggest that the national trends for recidivism are very similar to the Utah trends (or at least they were between 2012 and 2015).
+# The data also show that our study group had a recidivsm rate that was 74.3% after 36 months, whereas all prisoners had a rate of 64.2% (again, close to natural). The difference between the control group and national trends is (74.3 - 64.2) / 64.2, OR:
+COD_group_increase = 0.157
 
-1.  Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.
-2.  Repeat this simulation thousands of times to see how the results vary.
+sr_study_group <- read.csv("./clean_data/mschpprts05f02.csv", 
+                                 stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state = as.numeric(X.1),
+         In.state = In.state + (In.state * COD_group_increase)) %>% 
+  mutate(cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
+
+
+# Let's see what will happen post JRI
+COD_group_increase = 0.157
+recid_reduction = recid_reduction_JRI
+
+sr_post_intervention <- read.csv("./clean_data/mschpprts05f02.csv", 
+                           stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state_pre = as.numeric(X.1),
+         In.state_pre = In.state_pre + (In.state_pre * COD_group_increase),
+         In.state = In.state_pre - (In.state_pre * recid_reduction)) %>% 
+  mutate(cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
+
+sr_post_intervention$cum_per_of_reoffenders <- sr_post_intervention$In.state / sr_post_intervention$In.state[60]
+
+
+
+# Put them together to plot
+
+all_together <- data.frame(sr_post_intervention$cumulative_percent, sr_study_group$cumulative_percent, survival_rates$cumulative_percent)
+
+all_together$months <- c(1:60)
+```
+
+
+```{r pressure, echo=FALSE}
+# plot the curves
+ggplot(all_together, aes(months)) + 
+  geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
+  geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
+  geom_line(aes(y = survival_rates.cumulative_percent, colour = "National Trend")) +
+  ylab("Percent Who Recidivate") +
+  scale_y_continuous(labels=percent)
+
+# And clean things up
+rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
+```
+
+
+## A Stochastic Agent-based Model
+Although this does not have all of the features commonly associated with an [agent-based model](https://en.wikipedia.org/wiki/Agent-based_model), I use this term to describe the two-pronged process followed below: 
+
+1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.   
+2. Repeat this simulation thousands of times to see how the results vary.
+
 
 ### Using Real Data to Simulate Recidivism
 
-The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month, e.g., `P(relapse|months free)`. To do that, I wrote a function that first defines the correct survival curve, and then transforms the data from the cumulative probabilty of being arrested *by* time period (t), to the individual probabilty of being arrested *in* period (t).
+The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month, e.g., `P(relapse|months free)`. To do that, I wrote a function that first defines the correct survival curve, and then transforms the data from the cumulative probabilty of being arrested *by* time period (t), to the individual probabilty of being arrested *in* period (t).  
 
-``` r
+
+```{r}
 # Load survival data: the single argument is for reducing recidivism to model some intervention
 load_survival_data <- function(recid_reduction_ovr_cntrl){
   
@@ -134,23 +203,23 @@ load_survival_data <- function(recid_reduction_ovr_cntrl){
 }
 ```
 
+
 When loaded with no treatment assumed, the first five rows of data look like this:
 
-|  prob\_recidivate|  prob\_did\_not\_recidivate|
-|-----------------:|---------------------------:|
-|             0.079|                       0.921|
-|             0.046|                       0.954|
-|             0.049|                       0.951|
-|             0.050|                       0.950|
-|             0.050|                       0.950|
+```{r, echo=FALSE}
+survival_rates <- load_survival_data(0)
+kable(head(survival_rates, 5), digits = 3)
+```
 
 These estimates show that in the first month, someone from the COD group has about a 8% chance of recidivating. But if he can make it 4 months, that drops to only 5% in month 5. Using these data, we are now ready to populate our model.
 
-### Functions needed for the model
 
-This section is where all of the calculations take place. I'm putting it all in to make peer review easier, but if you are not interested in how the sausage gets made, I reccomend skipping to the "Results" section. These functions all take as arguments variables like `months_free` and `prison_sentence`, and return variables like `marginal_cost_of_parole`. All of the helper functions are run each "month" of the agent-level model.
+### Functions needed for the model 
 
-``` r
+This section is where all of the calculations take place. I'm putting it all in to make peer review easier, but if you are not interested in how the sausage gets made, I reccomend skipping to the "Results" section. These functions all take as arguments variables like `months_free` and `prison_sentence`, and return variables like `marginal_cost_of_parole`. All of the helper functions are run each "month" of the agent-level model. 
+
+
+```{r the functions}
 # If the agent is free, how many months has he or she been free
 calc_months_free <- function(m.month, m.prison_sentence, tmp.months_free) {
   ifelse(m.month == 1, 1,
@@ -334,13 +403,14 @@ calc_total_DWS_DHS_costs <- function(m.is_in_prison){
   ifelse(m.is_in_prison == 0, DHS + DWS, 0)
   
 }
+
 ```
 
-#### Single-agent function
 
+#### Single-agent function
 This is basically a for loop that iterates through the months of a 5-year timeframe and calculates costs and activities based on whether the parolee is in prison or free.
 
-``` r
+```{r single agent}
 sim_single_agent <- function(months) {
   
   # Define some factors
@@ -364,7 +434,7 @@ sim_single_agent <- function(months) {
                    total_parole_costs=numeric(0),
                    total_DWS_DHS_costs=numeric(0))
   
-  # loop through each month and see what happens            
+  # loop through each month and see what happens			
   for (month in 1:months) {
     
     ### generate action for each month ###
@@ -445,28 +515,19 @@ sim_single_agent <- function(months) {
 }
 ```
 
+
 When run for a single person, the rows and columns look like this (although the actual values will vary randomly based on the underlying data):
 
-| month | months\_free | rearrested\_or\_not | prison\_sentence | crime\_type | is\_in\_prison | is\_on\_parole | parole\_sentence | marginal\_prison\_costs | total\_prison\_costs | total\_court\_costs | total\_policing\_costs | is\_in\_shelter | total\_shelter\_costs | total\_parole\_costs | total\_DWS\_DHS\_costs |
-|:------|:-------------|:--------------------|:-----------------|:------------|:---------------|:---------------|:-----------------|:------------------------|:---------------------|:--------------------|:-----------------------|:----------------|:----------------------|:---------------------|:-----------------------|
-| 1     | 1            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 2     | 2            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 3     | 3            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 4     | 4            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 1               | 1647                  | 272.06               | 325                    |
-| 5     | 5            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 6     | 6            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 7     | 7            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 8     | 8            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 9     | 9            | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 10    | 10           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 11    | 11           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
-| 12    | 12           | 0                   | 0                |             | 0              | 1              | 18               | 0                       | 0                    | 0                   | 0                      | 0               | 0                     | 272.06               | 325                    |
+```{r, echo=FALSE}
+single_agent_test <- sim_single_agent(60)
+kable(head(single_agent_test, 12), digits = 3)
+```
+
 
 #### Multi-agent function
+This runs the single-agent simulation N times and compiles the results. 
 
-This runs the single-agent simulation N times and compiles the results.
-
-``` r
+```{r}
 sim_multi_agents <- function(n_agents, n_months){
   
   # set up the data frame
@@ -478,7 +539,7 @@ sim_multi_agents <- function(n_agents, n_months){
                    total_costs=numeric(0),
                    avg_total_cost_per_yr=numeric(0))
   
-  # loop through each month and see what happens            
+  # loop through each month and see what happens			
   for (agent in 1:n_agents) {
     
     ### generate action for each person ###
@@ -519,38 +580,64 @@ sim_multi_agents <- function(n_agents, n_months){
 
 When run for a period of 5 years with 1,000 agents, the first few rows look like this (again, with data that varies based on the results of the individual simulations):
 
-|  prison\_time|  months\_free|  prison\_costs|  avg\_prison\_cost\_per\_yr|  arrests|  total\_costs|  avg\_total\_cost\_per\_yr|  avg\_other\_cost\_per\_yr|
-|-------------:|-------------:|--------------:|---------------------------:|--------:|-------------:|--------------------------:|--------------------------:|
-|             8|            52|          20000|                        4000|        2|      55894.65|                  11178.930|                   7178.930|
-|             0|            60|              0|                           0|        0|      35511.28|                   7102.256|                   7102.256|
-|             0|            60|              0|                           0|        0|      33556.23|                   6711.246|                   6711.246|
-|             8|            52|          20000|                        4000|        4|      66046.13|                  13209.226|                   9209.226|
-|             0|            60|              0|                           0|        0|      29954.18|                   5990.836|                   5990.836|
-|            23|            37|          57500|                       11500|        3|      98965.22|                  19793.044|                   8293.044|
-|             0|            60|              0|                           0|        0|      29231.33|                   5846.266|                   5846.266|
-|             4|            56|          10000|                        2000|        2|      55041.69|                  11008.338|                   9008.338|
-|            37|            23|          92500|                       18500|        1|     116471.08|                  23294.216|                   4794.216|
-|             0|            60|              0|                           0|        0|      28615.23|                   5723.046|                   5723.046|
+```{r, echo=FALSE}
+multi_agent_test <- sim_multi_agents(n_agents = 1000, n_months = 60)
+kable(head(multi_agent_test, 10), digits = 3)
+```
 
-Results
-=======
 
-Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number.
+# Results
+Because of the model's stochastic nature, the results will vary slightly each time it is run. That said, with a large enough number of simulations (I reccomend over 1,000), the average results should begin to converge on a similar number. 
 
-In the latest simulation of 1,000 agents, the average total cost per parolee per year was **$14,379**, with a standard deviation of $7,922. The median was $13,580. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
+In the latest simulation of 1,000 agents, the average total cost per parolee per year was **`r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`**, with a standard deviation of `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`. The median was `r dollar(round(median(multi_agent_test$avg_total_cost_per_yr)))`. Here is a histogram of the distribution of the average total cost per year. Some will cost the state very little, while others will cost tens of thousands of dollars:
 
-![](Utah_recidivism_model_files/figure-markdown_github/cost-1.png)
+```{r cost, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  ylab("# of Simulations") +
+  xlab("Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
+```
 
-The maximum cost in this simulation was $44,410. This would likely be someone who spent the majority of the 5 years in prison. On the other end are parolees who cost the state less than $6,669, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+The maximum cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
 
-Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of $7,974 per year, or 55.5% of the total cost.
+Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
 
-![](Utah_recidivism_model_files/figure-markdown_github/cost2-1.png)
+```{r cost2, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(avg_prison_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  ylab("# of Simulations") +
+  xlab("Average Total Cost Per Year: Prison") +
+  scale_x_continuous(labels=dollar)
+```
 
-This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, 18.6% returned more than twice:
+```{r, echo=FALSE}
+more_than_two <- multi_agent_test %>% 
+  filter(arrests > 2) %>% 
+  nrow()
+```
 
-![](Utah_recidivism_model_files/figure-markdown_github/returns-1.png)
+This is because, even accounting for JRI, more than one half of our COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, `r percent(more_than_two / nrow(multi_agent_test))` returned more than twice:
+
+```{r returns, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(arrests)) + 
+  geom_bar(fill="#c0392b", alpha=0.75, color = "white") +
+  ylab("# of Simulations") +
+  xlab("# of re-arrests")
+```
+
 
 ### With Treatment
+```{r, echo=FALSE}
+treatment_recid_reduction <- .15
 
-Assuming a recidivism reduction of 15%, instead of approximately $14,000, the average parolee will cost the state of Utah **$12,398**.
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = treatment_recid_reduction)
+
+multi_agent_test <- sim_multi_agents(1000, 60)
+
+```
+
+Assuming a recidivism reduction of `r percent(treatment_recid_reduction)`, instead of approximately $14,000, the average parolee will cost the state of Utah **`r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`**. 
