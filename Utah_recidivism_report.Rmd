@@ -20,7 +20,7 @@ library(scales)
 
 
 
-This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the costs and benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occuring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
+This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the costs and benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occurring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
 
 The potential benefits of reducing jail time for the COD population are numerous. In this report, we focus mainly on the economic benefits that accrue to the state of Utah, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
 
@@ -114,6 +114,7 @@ The kaplan-meier curves come from this [BJS Report](http://www.bjs.gov/index.cfm
 
 
 ##### Pagebreak
+The following chart shows estimated survival curves from national averages, the COD population pre-JRI, and post-JRI with a `r percent(recid_reduction_JRI)` reduction in recidivism. The X-axis is time in months over a period of five years. The Y-axis is the cumulative percent who recidivate at least once. The chart shows that recidivism is more likely in the first year, and then tapers off over time. This suggests that if a program is effective at helping people early on, it will be more effective than if it aims to help people several months removed from their release.   
 
 ```{r pressure, echo=FALSE}
 # plot the curves
@@ -127,3 +128,7 @@ ggplot(all_together, aes(months)) +
 # And clean things up
 rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
 ```
+
+
+##### Pagebreak
+
