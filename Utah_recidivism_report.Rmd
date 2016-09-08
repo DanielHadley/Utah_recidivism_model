@@ -19,9 +19,111 @@ library(scales)
 ```
 
 
-# Here is some text
-And some more
+
+This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the costs and benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occuring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
+
+The potential benefits of reducing jail time for the COD population are numerous. In this report, we focus mainly on the economic benefits that accrue to the state of Utah, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
+
+The challenge is determining how much time the average person from the COD demographic is expected to spend in prison, once released, and what reducing that is likely to save the State. This is a difficult prediction problem, given all of the factors; but we have created a model that does a reasonable job of simulating a person's chances of returning to prison. With that information, we can scale up - that is, simulate a thousand people and collect statistics on the outcome. The assumptions, challenges, and conclusions of this approach are described in the following pages. 
+
+As the statistician George Box [famously observed](https://en.wikipedia.org/wiki/All_models_are_wrong), "all models are wrong but some are useful." We hope this one is useful. 
+
+![](dont_commit/logo.png)
 
 
-##### And some more
-Here should be a new page
+##### Pagebreak
+
+```{r recidivism rates, include=FALSE}
+# A 10% reduction in recidivism 
+recid_reduction_JRI <- .10
+
+## Load and clean the data ##
+# These are the national data
+survival_rates <- read.csv("./clean_data/mschpprts05f02.csv", 
+                           stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state = as.numeric(X.1),
+         cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
+
+
+# Here are imputed survival rates. Basically, the data that Julie sent suggest that the national trends for recidivism are very similar to the Utah trends (or at least they were between 2012 and 2015).
+# The data also show that our study group had a recidivsm rate that was 74.3% after 36 months, whereas all prisoners had a rate of 64.2% (again, close to natural). The difference between the control group and national trends is (74.3 - 64.2) / 64.2, OR:
+COD_group_increase = 0.157
+
+sr_study_group <- read.csv("./clean_data/mschpprts05f02.csv", 
+                                 stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state = as.numeric(X.1),
+         In.state = In.state + (In.state * COD_group_increase)) %>% 
+  mutate(cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
+
+
+# Let's see what will happen post JRI
+COD_group_increase = 0.157
+recid_reduction = recid_reduction_JRI
+
+sr_post_intervention <- read.csv("./clean_data/mschpprts05f02.csv", 
+                           stringsAsFactors = F) %>% 
+  filter(X != "",
+         X != "National") %>% 
+  mutate(In.state_pre = as.numeric(X.1),
+         In.state_pre = In.state_pre + (In.state_pre * COD_group_increase),
+         In.state = In.state_pre - (In.state_pre * recid_reduction)) %>% 
+  mutate(cumulative_percent = In.state / 100,
+         cumulative_prob_did_not = 1 - cumulative_percent,
+         prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
+
+sr_post_intervention$cum_per_of_reoffenders <- sr_post_intervention$In.state / sr_post_intervention$In.state[60]
+
+
+
+# Put them together to plot
+
+all_together <- data.frame(sr_post_intervention$cumulative_percent, sr_study_group$cumulative_percent, survival_rates$cumulative_percent)
+
+all_together$months <- c(1:60)
+```
+
+
+
+# Recidivism Rates
+
+## Description:
+This is the estimated percent of parolees who will return to prison within a given time after release. 
+
+
+## Sources:
+The kaplan-meier curves come from this [BJS Report](http://www.bjs.gov/index.cfm?ty=pbdetail&iid=4986) of national trends. The Utah Department of Corrections also provided recidivism rates for the 2012 release cohort, which allowed for tracking of the COD population over three years. I do not have data showing the exact Utah curves (nor does such data exist for the post-JRI era), but I was encouraged to learn that the 3-year outcomes for Utah pre-JRI were very similar to national trends. 
+
+
+## Assumptions:
+* The survival curves for the COD population will bend in similar ways to national trends
+* The JRI will reduce recidivism among the COD population by `r percent(recid_reduction_JRI)`.
+
+
+## Statistics
+* Pre-JRI, approximately `r percent(round(sr_study_group$cumulative_percent[12], 2))` of the COD population re-offended within one year.
+* Approximately `r percent(round(sr_study_group$cumulative_percent[36], 2))` re-offended within three years.
+* If, as this model assumes, the JRI reduces recidivism by `r percent(recid_reduction_JRI)`, there will still be `r percent(round(sr_post_intervention$cumulative_percent[36], 2))` of the COD population who recidivate within three years.
+
+
+##### Pagebreak
+
+```{r pressure, echo=FALSE}
+# plot the curves
+ggplot(all_together, aes(months)) + 
+  geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
+  geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
+  geom_line(aes(y = survival_rates.cumulative_percent, colour = "National Trend")) +
+  ylab("Percent Who Recidivate") +
+  scale_y_continuous(labels=percent)
+
+# And clean things up
+rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
+```
