@@ -66,7 +66,6 @@ sr_study_group <- read.csv("./clean_data/mschpprts05f02.csv",
 
 # Let's see what will happen post JRI
 COD_group_increase = 0.157
-recid_reduction = recid_reduction_JRI
 
 sr_post_intervention <- read.csv("./clean_data/mschpprts05f02.csv", 
                            stringsAsFactors = F) %>% 
@@ -74,7 +73,7 @@ sr_post_intervention <- read.csv("./clean_data/mschpprts05f02.csv",
          X != "National") %>% 
   mutate(In.state_pre = as.numeric(X.1),
          In.state_pre = In.state_pre + (In.state_pre * COD_group_increase),
-         In.state = In.state_pre - (In.state_pre * recid_reduction)) %>% 
+         In.state = In.state_pre - (In.state_pre * recid_reduction_JRI)) %>% 
   mutate(cumulative_percent = In.state / 100,
          cumulative_prob_did_not = 1 - cumulative_percent,
          prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not)) %>% filter(In.state != 0)
@@ -89,7 +88,6 @@ all_together <- data.frame(sr_post_intervention$cumulative_percent, sr_study_gro
 
 all_together$months <- c(1:60)
 ```
-
 
 
 # Recidivism Rates
@@ -132,3 +130,115 @@ rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
 
 ##### Pagebreak
 
+```{r, echo=FALSE}
+prison_terms <- read.csv("./clean_data/prison_terms.csv", stringsAsFactors = FALSE) %>% 
+  mutate(mean_time_served = round(mean_time_served)) %>% 
+  select(-assumptions)
+
+# I do these so that I can add a blank in the function below
+prison_terms[8,1] <- ""
+
+# replcace NAs with 0
+prison_terms$frequency[is.na(prison_terms$frequency)] <- 0
+prison_terms$frequency_of_crime[is.na(prison_terms$frequency_of_crime)] <- 0
+
+```
+
+
+# Crime Types
+
+## Description:
+These data show the frequency of certain crime types among parolees. They differ from the survival curves in that they show not the time it takes to reoffend, but what type of crime is most likely to be involved in the event of a reoffense.  
+
+
+## Sources:
+I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the `frequency_of_crime` and added parole violations, which used to account for 70% of returns. In the model, `frequency` is used when the person is on parole, and `frequency_of_crime` is used when they are not.    
+
+
+## Assumptions:
+* The crime type frequencies for a reoffense will be similar to those from the original offense with one major difference: the reoffense frequencies will include parole violations, which are very common.   
+
+
+## Statistics
+* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes commited while off parole.
+* Murder is the least likely, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`
+* When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurances. 
+
+The following table shows these frequencies.
+
+```{r, echo=FALSE}
+
+frequenceis_to_print <- prison_terms %>% 
+  select(offense_type, frequency_of_crime, frequency) %>% 
+  filter(offense_type != "") %>% 
+  mutate(frequency_of_crime = percent(frequency_of_crime),
+         frequency = percent(frequency))
+
+kable(head(frequenceis_to_print, 10), digits = 3)
+
+rm(frequenceis_to_print)
+```
+
+
+
+##### Pagebreak
+
+```{r, echo=FALSE}
+
+# This is just a guess
+time_served_scale_JRI <- .8
+
+# Scale down time served to reflect (guess)timated effects of the JRI
+prison_terms$mean_time_served_post_JRI <- round(prison_terms$mean_time_served * time_served_scale_JRI)
+
+
+# Another big change from the JRI is that prison sentences for technical violations are capped
+# So we change the 15-month mean time served to a 2-month one
+# page 39: http://www.utah.gov/pmn/files/172049.pdf
+parole_violation_MTS_JRI <- 2
+
+# Change parole violation sentences to post-JRI level
+prison_terms$mean_time_served_post_JRI[prison_terms$offense_type == "Parole_Violation"] <- parole_violation_MTS_JRI
+
+# Finally, the length of parole is expected to go down significantly
+# AS far as I can tell, 3 years was standard for all offenders. 
+# http://law.justia.com/codes/utah/2006/title76/76_03009.html
+# With the JRI, parolees with good behavior can reduce that to 18 months
+parole_length_JRI <- 18
+
+```
+
+
+# Prison Time Served
+
+## Description:
+If convicted, these data show the length of time a parolee can expect to spend in prison, on average, for the various crime types. 
+
+
+## Sources:
+The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which I scale down to reflect changes from the JRI (as described below). 
+
+
+## Assumptions:
+* The JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. This is just a guess as there are not enough empirical datapoints to confirm what the JRI will do to time served, but it is almost certain that sentences will be reduced. 
+* The average prison sentence for technical violations will go from 15 months to approximately `r parole_violation_MTS_JRI`. This is also a guess based on the new [sentencing guidelines](http://www.utah.gov/pmn/files/172049.pdf).
+* The average parole sentence will go from three years to `r parole_length_JRI <- 18` months for those who exhibit good behavior, as per [this](http://law.justia.com/codes/utah/2006/title76/76_03009.html) document. 
+
+
+## Statistics
+* Prior to the JRI, murder resulted in the longest average prison sentence at `r prison_terms$mean_time_served[prison_terms$offense_type == "Murder"]` months.
+* The second longest was for sex crimes: `r prison_terms$mean_time_served[prison_terms$offense_type == "sex"]` months.
+
+Here is a table of the actual values and the estimated values for the post-JRI period.
+
+```{r, echo=FALSE}
+
+mts_to_print <- prison_terms %>% 
+  select(offense_type, mean_time_served, mean_time_served_post_JRI) %>% 
+  filter(offense_type != "") 
+
+kable(head(mts_to_print, 10), digits = 3)
+
+rm(mts_to_print)
+
+```
