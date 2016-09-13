@@ -152,24 +152,26 @@ These data show the frequency of certain crime types among parolees. They differ
 
 
 ## Sources:
-I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the `frequency_of_crime` and added parole violations, which used to account for 70% of returns. In the model, `frequency` is used when the person is on parole, and `frequency_of_crime` is used when they are not.    
+I pieced this data together using a an email from Julie Christensen, which contained the offense frequencies for our COD demographic, and various reports from the CCJJ. For the "frequency" column, I took the `frequency_of_crime` and added parole violations, which used to account for 70% of returns. In the model, `frequency` is used when the person is on parole, and `frequency_of_crime` is used when they are not. Finally, the [Cost of Crime Report](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) contains estimates of the taxpayer costs of these crimes, from which I take the policing and court costs.    
 
 
 ## Assumptions:
-* The crime type frequencies for a reoffense will be similar to those from the original offense with one major difference: the reoffense frequencies will include parole violations, which are very common.   
+* The crime type frequencies for a reoffense will be similar to those from the original offense with one major difference: the reoffense frequencies will include parole violations, which are very common.
+* Parole costs are similar to those of a property crime.  
 
 
 ## Statistics
-* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes commited while off parole.
-* Murder is the least likely, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`
+* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes commited while off parole. It is also the least expensive at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Property"] + prison_terms$police_cost[prison_terms$offense_type == "Property"]), 2))` (court and policing costs).
+* Murder is the least likely, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`, but the most expensive by far at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Murder"] + prison_terms$police_cost[prison_terms$offense_type == "Murder"]), 2))`
 * When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurances. 
 
-The following table shows these frequencies.
+The following table shows these frequencies and costs (for court and policing).
 
 ```{r, echo=FALSE}
 
 frequenceis_to_print <- prison_terms %>% 
-  select(offense_type, frequency_of_crime, frequency) %>% 
+  mutate(cost = dollar(police_cost + court_cost)) %>% 
+  select(offense_type, frequency_of_crime, frequency, cost) %>% 
   filter(offense_type != "") %>% 
   mutate(frequency_of_crime = percent(frequency_of_crime),
          frequency = percent(frequency))
@@ -227,7 +229,7 @@ The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports
 
 ## Statistics
 * Prior to the JRI, murder resulted in the longest average prison sentence at `r prison_terms$mean_time_served[prison_terms$offense_type == "Murder"]` months.
-* The second longest was for sex crimes: `r prison_terms$mean_time_served[prison_terms$offense_type == "sex"]` months.
+* The second longest was for sex crimes: `r prison_terms$mean_time_served[prison_terms$offense_type == "Sex"]` months.
 
 Here is a table of the actual values and the estimated values for the post-JRI period.
 
@@ -242,3 +244,478 @@ kable(head(mts_to_print, 10), digits = 3)
 rm(mts_to_print)
 
 ```
+
+
+
+
+##### Pagebreak
+
+```{r the functions, echo=FALSE}
+### These are the basis of the model, and also contain several assumptions
+
+# If the agent is free, how many months has he or she been free
+calc_months_free <- function(m.month, m.prison_sentence, tmp.months_free) {
+  ifelse(m.month == 1, 1,
+         ifelse(m.prison_sentence > 1, 0,
+                tmp.months_free + 1))
+}
+
+
+# Taking the survival analysis data from national trends, this will calculate the odds of being rearrested conditional on the number of months he or she has been free
+calc_odds_of_being_rearrested <- function(m.months_free) {
+  ifelse(m.months_free == 0, 0,
+         sample(x = c(1, 0), 
+                size = 1, 
+                replace = FALSE, 
+                prob = c(as.matrix(survival_rates[m.months_free,]))))
+}
+
+
+# If arrested what is the prison sentence? This samples from the crime frequencies and returns a sentence based on the selected crime.
+define_crime_and_time <- function(tmp.is_on_parole, m.rearrested_or_not, m.month, tmp.prison_sentence) {
+  
+  # First the index of crime and time, based on a probabilistic sample of crime types
+  # It's a little ineffecient to do this every time, but NBD
+  if_on_parole <- sample(x = c(1:nrow(prison_terms)),
+                        size = 1,
+                        replace = FALSE,
+                        prob = c(prison_terms$frequency))
+  
+  # By definition, if they are off parole they can only be arrested for a crime
+  if_off_parole <- sample(x = c(1:nrow(prison_terms)),
+                          size = 1,
+                          replace = FALSE,
+                          prob = c(prison_terms$frequency_of_crime))
+  
+  # There is a one month lag b/c I am using the tmp.is_on_parole, but that is acceptble
+  crime_index <- ifelse(m.month == 1, if_on_parole,
+                        ifelse(tmp.is_on_parole == 1, if_on_parole,
+                               if_off_parole))
+  
+  # The crime
+  crime <- if_else(m.rearrested_or_not == 1, 
+                   prison_terms$offense_type[crime_index],
+                   "")
+  
+  # Sentence, aka, the time
+  prison_sentence <- if_else(m.rearrested_or_not == 1, 
+                             as.numeric(prison_terms$mean_time_served_post_JRI[crime_index]),
+                             ifelse(m.month == 1, 0,
+                                    ifelse(m.rearrested_or_not == 0, 
+                                           tmp.prison_sentence, 
+                                           0)))
+  
+  to_return <- list(crime, prison_sentence)
+  
+  return(to_return)
+}
+
+
+# Simply for summing later and helping with cost functions below
+say_if_in_prison <- function(m.prison_sentence) {
+  ifelse(m.prison_sentence > 0, 1, 0)
+}
+
+
+# Parole (under JRI)
+# The reason this is not longer than 18 is that if they have made it this long without reoffending, they are by definition showing good behavior 
+calc_parole_sentence <- function(m.month, m.rearrested_or_not, tmp.parole_sentence){
+  ifelse(m.month == 1, parole_length_JRI,
+         ifelse(m.rearrested_or_not == 1, parole_length_JRI,
+                tmp.parole_sentence))
+}
+
+
+## The monthly costs of prison
+# Marginal
+calc_marginal_prison_costs <- function(m.is_in_prison, m.month) {
+  
+  # My calculation of the marginal costs
+  # See Analyze_Costs.R
+  marginal_cost_of_prison <- 5200 / 12
+  
+  # Marginal long term
+  marginal_cost_of_prison_lt <- 16376 / 12
+  
+  if_else(m.is_in_prison == 1 & m.month <= 36, marginal_cost_of_prison, 
+          ifelse(m.is_in_prison == 1 & m.month > 36, marginal_cost_of_prison_lt,
+                 0))
+}
+
+
+# Total
+# From the CPD data
+calc_total_prison_costs <- function(m.is_in_prison) {
+  
+  total_cost_of_prison <- 30000 / 12
+  
+  if_else(m.is_in_prison == 1, total_cost_of_prison, 
+          0)
+}
+
+
+### The costs of crime
+# http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf
+# courts
+calc_total_court_costs <- function(m.rearrested_or_not, m.crime_type){
+  
+  ifelse(m.rearrested_or_not == 1, 
+         prison_terms$court_cost[prison_terms$offense_type == m.crime_type],
+         0)
+  
+}
+
+
+# cops
+calc_total_policing_costs <- function(m.rearrested_or_not, m.crime_type){
+  
+  ifelse(m.rearrested_or_not == 1, 
+         prison_terms$police_cost[prison_terms$offense_type == m.crime_type],
+         0)
+  
+}
+
+
+# IF out of prison, in a shelter???
+# Not sure how to think of this.
+# Low end estimate: 386 out of 17,039 on parole or probation are in CCCs (2.2%)
+# High end estimate: the frequent users in DC spent 25% in a shelter.
+# Medium but conservative: "In CA, 10% of state’s parolees are homeless"
+# http://www.urban.org/sites/default/files/alfresco/publication-pdfs/412504-Frequent-Users-of-Jail-and-Shelter-Systems-in-the-District-of-Columbia-An-Overview-of-the-Potential-for-Supportive-Housing.PDF
+# http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf
+prob_of_shelter <- .1
+define_shelter_days <- function(m.is_in_prison){
+  
+  ifelse(m.is_in_prison == 1, 0,
+         sample(x = (c(1,0)), 1, prob = c(prob_of_shelter, 1 - prob_of_shelter)))
+  
+}
+
+
+# When they are on parole, most will not go to a homeless shelter, but rather a CCC
+# The cost to operate those are in the CPD data from AP&P. 
+# There are a lot of possibilities for calculating the costs when they are off parole. Yvette sent data on Palmer Court and other shelters. Julia sent some data on the cost to operate and number of folks in halfway houses. There is a huge variety in costs. I think Yvette's estimate is a good place to start, which is 10.10. 
+calc_shelter_costs <- function(m.is_in_shelter, m.is_on_parole){
+  
+  shelter_cost <- 10.10
+  CCC_cost <- mean(54, 102, 75, 143, 95)
+  
+  ifelse(m.is_in_shelter == 1 & m.is_on_parole == 0, shelter_cost * 30.5,
+         ifelse(m.is_in_shelter == 1 & m.is_on_parole == 1, CCC_cost * 30.5,
+         0))
+  
+}
+
+
+# Adult parole costs (this group will not get probation)
+# This data comes from the cost per day pdf given to me
+calc_total_app_costs <- function(m.is_on_parole){
+  
+  # Based on the cost per day data
+  # But minus the shelter,i.e., CCCs, because those are only used by a portion
+  
+  cost_per_day <- (.23 + .62 + .51) + #admin costs
+    mean(7.06, 6.5, 5.48, 8.34, 6.13) + # Avg of Region costs
+    .5 # community programs
+    
+  
+  ifelse(m.is_on_parole == 1, cost_per_day * 30.5, 0)
+  
+}
+
+
+# DWS & DHS
+# average costs for DWS - food stamps, abd, WIOA, etc - are 75$ for adult males in the program
+# It's probably safe to assume that the average COD parolee uses that
+# DHS spends an average of $3000 per client on Substance use and $3000 per client on Mental Health, including inpatient, outpatient, crisis care, etc.
+# Probably safe to assume there is some overlap here, but not total overlap. Conservatively, we will say $3000 total per parolee / yr, and hope that will make up for the fact that some probably do not use it at all. 
+calc_total_DWS_DHS_costs <- function(m.is_in_prison){
+  
+  DWS <- 75
+  DHS <- 3000 / 12
+  
+  ifelse(m.is_in_prison == 0, DHS + DWS, 0)
+  
+}
+
+```
+
+
+# Costs
+
+## Description:
+These are assumptions, estimates, and past data about the direct taxpayer costs of caring for a parolee both in and out of prison.  
+
+
+## Sources:
+As described above, the [Cost of Crime Report](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) contains estimates of the taxpayer costs of these crimes, from which I take the policing and court costs. The costs of prison, parole, and shelters come from two PDF reports given to the Center by the Department of Corrections: one that details the cost per day for prisons, and one for parole services, including costs for Community Correctional Centers (CCC). Aggregated DWS and DHS cost data were given to the Center by the respective agencies.      
+
+
+## Assumptions:
+* Once released, a parolee will spend about `r percent(prob_of_shelter)` of his or her time, on average, in a shelter. This is based on data from the state of California, where "10% of the state’s parolees are homeless," according to [this report](http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf).
+* Parolees will use DWS services at rates similar to the average childless male who utilizes these services. 
+* To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 anually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
+* I assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison.
+* DHS costs include some inpatient and outpatient care (e.g., methadone), but I do not count costs from emergency room visits and other health expenses outside of DHS  
+
+
+## Statistics
+* The average annual cost to house a prisoner is approximately $30,000. This is the largest cost associated with the average parolee. 
+
+
+
+
+##### Pagebreak
+
+# About the model
+
+## Description:
+Although this does not have all of the features commonly associated with an [agent-based model](https://en.wikipedia.org/wiki/Agent-based_model), I use this term to describe the two-pronged process followed here: 
+
+1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.   
+2. Repeat this simulation thousands of times to see how the results vary.  
+
+
+## Sources:
+I had the idea to use an agent-based model when it occured to me how difficult it would be to calculate costs for parolees given that they are likely to move in and out of the prison system multiple times. I loosely based my model on the principles from [this article](http://www.babelgraph.org/wp/?p=237)
+
+
+The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month. The conditional probability of continued freedom is given by:  
+
+$$P_i = \frac{f_i - r_i}{f_i}$$
+
+where *f* is the number of people free but at risk of recidivating in the *i*th interval, and *r* is the number who recidivated in the same period.  
+
+```{r, echo=FALSE}
+# Load survival data: the single argument is for reducing recidivism to model some intervention
+load_survival_data <- function(recid_reduction_ovr_cntrl){
+  
+  # This is the increased rate of recidivism of our COD group, relative to national
+  COD_group_increase = 0.157
+  
+  survival_rates <- read.csv("./clean_data/mschpprts05f02.csv", 
+                             stringsAsFactors = F) %>% 
+    filter(X != "",
+           X != "National") %>% 
+    mutate(In.state = as.numeric(X.1),
+           
+           # Increase from COD group
+           In.state = In.state + (In.state * COD_group_increase),
+           
+           # Minus the JRI reduction
+           # This is defined in the assumptions section above
+           In.state = In.state - (In.state * recid_reduction_JRI),
+           
+           # If we expect further reductions from targeted intervention
+           In.state = In.state - (In.state * recid_reduction_ovr_cntrl)) %>% 
+    
+    # Now turn the data into P(relapse | t)
+    mutate(cumulative_percent = In.state / 100,
+           cumulative_prob_did_not = 1 - cumulative_percent,
+           prob_recidivate = 1 - cumulative_prob_did_not / lag(cumulative_prob_did_not),
+           prob_did_not_recidivate = 1 - prob_recidivate) %>% 
+    filter(In.state != 0) %>% 
+    select(prob_recidivate, prob_did_not_recidivate)
+}
+```
+
+
+When loaded with no treatment assumed, the first five rows of data look like this:
+
+```{r, echo=FALSE}
+survival_rates_for_printing <- load_survival_data(0) %>% 
+  mutate(month = seq(1:nrow(.))) %>% 
+  mutate(prob_recidivate = percent(prob_recidivate),
+         prob_did_not_recidivate = percent(prob_did_not_recidivate))
+
+kable(head(survival_rates_for_printing[,c(3,1,2)], 5), digits = 3)
+
+rm(survival_rates_for_printing)
+```
+
+These estimates show that in the first month, someone from the COD group has about an 8% chance of recidivating. But if he can make it 4 months, that drops to only 5% in month 5. Using these data, we are now ready to populate our model.
+
+
+
+##### Pagebreak
+
+```{r single agent, echo=FALSE}
+sim_single_agent <- function(months) {
+  
+  # Define some factors
+  levels.crimetype <- factor(prison_terms$offense_type)
+  
+  # set up the data frame
+  df <- data.frame(month=numeric(0),
+                   months_free=numeric(0),
+                   rearrested_or_not=numeric(0),
+                   prison_sentence=numeric(0),
+                   crime_type=factor(levels = levels.crimetype),
+                   is_in_prison=numeric(0),
+                   is_on_parole=numeric(0),
+                   parole_sentence=numeric(0),
+                   marginal_prison_costs=numeric(0),
+                   total_prison_costs=numeric(0),
+                   total_court_costs=numeric(0),
+                   total_policing_costs=numeric(0),
+                   is_in_shelter=numeric(0),
+                   total_shelter_costs=numeric(0),
+                   total_parole_costs=numeric(0),
+                   total_DWS_DHS_costs=numeric(0))
+  
+  # loop through each month and see what happens			
+  for (month in 1:months) {
+    
+    ### generate action for each month ###
+    m.month <- month
+    
+    # Dependent on whether they were arrested or not
+    m.months_free <- calc_months_free(m.month, m.prison_sentence, tmp.months_free)
+    
+    # Binary variable based on the conditional probability table from nationwide trends
+    m.rearrested_or_not <- calc_odds_of_being_rearrested(m.months_free)
+  
+    
+    # Add a crime and prison sentence if there was an arrest
+    # Also based on probability table from national trends
+    crime_and_time <- 
+      define_crime_and_time(m.is_on_parole, m.rearrested_or_not, m.month, tmp.prison_sentence)
+    
+    m.prison_sentence <- as.numeric(crime_and_time[2])
+    
+    m.crime_type <- as.character(crime_and_time[1])
+  
+    
+    # For calculating the total months in prison later
+    m.is_in_prison <- say_if_in_prison(m.prison_sentence)
+    
+    # And a parole sentence for when they get out
+    m.parole_sentence <- calc_parole_sentence(m.month, m.rearrested_or_not, tmp.parole_sentence)
+    
+    # Is on parole??
+    m.is_on_parole <- if_else(m.is_in_prison == 1, 0,
+                              ifelse(m.months_free <= m.parole_sentence, 1, 0))
+    
+    ### Costs of crimes commited
+    # Prison
+    m.marginal_prison_costs <- calc_marginal_prison_costs(m.is_in_prison, m.month)
+    m.total_prison_costs <- calc_total_prison_costs(m.is_in_prison)
+    
+    # Courts
+    m.total_court_costs <- calc_total_court_costs(m.rearrested_or_not, m.crime_type)
+    
+    # Cops
+    m.total_policing_costs <- calc_total_policing_costs(m.rearrested_or_not, m.crime_type)
+    
+    # Shelters 
+    m.is_in_shelter <- define_shelter_days(m.is_in_prison)
+    m.total_shelter_costs <- calc_shelter_costs(m.is_in_shelter, m.is_on_parole)
+    
+    # Parole
+    m.total_parole_costs <- calc_total_app_costs(m.is_on_parole)
+    
+    # DWS
+    m.total_DWS_DHS_costs <- calc_total_DWS_DHS_costs(m.is_in_prison)
+    
+    
+    # add month to the data frame
+    df[month,] <- 
+      c(m.month, m.months_free, m.rearrested_or_not, m.prison_sentence, 
+        m.crime_type, m.is_in_prison, m.is_on_parole, m.parole_sentence, 
+        m.marginal_prison_costs, m.total_prison_costs, m.total_court_costs, 
+        m.total_policing_costs, m.is_in_shelter, m.total_shelter_costs, 
+        m.total_parole_costs, m.total_DWS_DHS_costs)
+    
+    
+    # Make temporary vector for determining months free in the next pass
+    tmp.months_free <- if_else(m.rearrested_or_not == 1, 0, m.months_free)
+    
+    # Temporary parole sentence
+    tmp.parole_sentence <- m.parole_sentence
+    tmp.is_on_parole <- m.is_on_parole
+    
+    # Also, count down the time served from last month, if any
+    tmp.prison_sentence <- ifelse(m.prison_sentence == 0, 0,
+                                  m.prison_sentence - 1)
+  }
+  
+  # output results
+  return (df)
+}
+
+
+```
+
+
+```{r multiple, echo=FALSE}
+sim_multi_agents <- function(n_agents, n_months){
+  
+  # set up the data frame
+  df <- data.frame(prison_time=numeric(0),
+                   months_free=numeric(0),
+                   prison_costs=numeric(0),
+                   avg_prison_cost_per_yr=numeric(0),
+                   arrests=numeric(0),
+                   total_costs=numeric(0),
+                   avg_total_cost_per_yr=numeric(0))
+  
+  # loop through each month and see what happens			
+  for (agent in 1:n_agents) {
+    
+    ### generate action for each person ###
+    single_agent <- sim_single_agent(n_months)
+    
+    # Sum things that happend to the agent
+    a.prison_time <- sum(as.numeric(single_agent$is_in_prison))
+    a.months_free <- 60 - a.prison_time
+    a.total_prison_costs <- sum(as.numeric(single_agent$total_prison_costs))
+    a.avg_prison_cost_per_yr <- a.total_prison_costs / (n_months / 12)
+    a.arrests <- sum(as.numeric(single_agent$rearrested_or_not))
+    
+    # Get total costs
+    total_costs <- single_agent %>% 
+      select(starts_with("total"))
+    
+    total_costs <- sapply(total_costs, as.numeric)
+    a.total_costs <- sum(colSums(total_costs))
+    
+    a.avg_total_cost_per_yr <- a.total_costs / (n_months / 12)
+    
+    
+    # add month to the data frame
+    df[agent,] <- 
+      c(a.prison_time, a.months_free, a.total_prison_costs, a.avg_prison_cost_per_yr,
+        a.arrests, a.total_costs, a.avg_total_cost_per_yr)
+    
+  }
+  
+  df <- df %>% 
+    mutate(avg_other_cost_per_yr = avg_total_cost_per_yr - avg_prison_cost_per_yr)
+  
+  # output results
+  return (df)
+  
+}
+```
+
+
+```{r model parameters, echo=FALSE}
+n_agents = 1000
+n_months = 60
+```
+
+
+## Assumptions:
+* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomolous results.
+
+
+### Single Agent 
+When run for a single person, the first few rows and columns look like this (although the actual values will vary randomly based on the underlying data):
+
+```{r, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
+single_agent_test <- sim_single_agent(months = n_months) %>% 
+  select(1:6)
+kable(head(single_agent_test, 12), digits = 3)
+```
+
