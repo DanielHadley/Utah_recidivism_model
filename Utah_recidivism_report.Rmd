@@ -7,6 +7,10 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache=TRUE)
+
+set.seed(1876)
+
 # Load the packages neeed and set working directory
 setwd("~/Github/Utah_recidivism_model/")
 library(tidyverse)
@@ -120,7 +124,7 @@ ggplot(all_together, aes(months)) +
   geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
   geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
   geom_line(aes(y = survival_rates.cumulative_percent, colour = "National Trend")) +
-  ylab("Percent Who Recidivate") +
+  labs(title = "Time to Recidivism", y = "Percent Who Recidivate") + 
   scale_y_continuous(labels=percent)
 
 # And clean things up
@@ -470,6 +474,8 @@ As described above, the [Cost of Crime Report](http://www.justice.utah.gov/Docum
 # About the model
 
 ## Description:
+[Note: this section is more technical. For the results, skip forward a couple pages]. 
+
 Although this does not have all of the features commonly associated with an [agent-based model](https://en.wikipedia.org/wiki/Agent-based_model), I use this term to describe the two-pronged process followed here: 
 
 1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.   
@@ -704,31 +710,31 @@ n_agents = 1000
 n_months = 60
 ```
 
-
 ## Assumptions:
 * It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomolous results.
-
-
-
-### Single Agent 
-When run for a single agent, the time spent in and out of prison look like this:
 
 ```{r, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
 single_agent_test <- sim_single_agent(months = n_months) 
-ggplot(single_agent_test, aes(month) + 
-  geom_bar(aes(y = numeric(is_in_prison))))
 ```
 
+### Single Agent 
+When run for a single person, the resulting data contain `r n_months / 12` rows, each representing a month in the life of the simulated parolee. The columns track outcomes of the simulation and their associated costs: `r names(single_agent_test)`. 
 
-When run for a single person, the first few rows and columns look like this (although the actual values will vary randomly based on the underlying data):
+The main driver of costs and savings is prison time, which is represented by a binary [0,1] vector, where 1 means "in prison." For a single agent, that could be represented in the following chart, where the X-axis is time in months, and the Y-axis is prison status:
 
 ```{r, echo=FALSE}
-survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
-single_agent_test <- sim_single_agent(months = n_months) %>% 
-  select(1:6)
-kable(head(single_agent_test, 12), digits = 3)
+# Prep data
+single_agent_test$month <- as.numeric(single_agent_test$month)
+ggplot(single_agent_test, aes(month, is_in_prison, group = 1)) + 
+  geom_line() + labs(title = "Single Agent Simulation", y = "prison status")
 ```
+
+
+##### Pagebreak
+
+## Multiple Agent Simulation
+The power of this model comes from tracking the outcomes of multiple simulations. For each one, we track time in and out of prison and the associated costs. This allows us to answer the question of what would happen if we recuded recidivsm among the COD population. To help visualize this, here is a matrix of 12 simulations using the same chart format from the previous page:  
 
 ```{r multiple plots, echo=FALSE}
 # First a function to plot multiple plots in one
@@ -744,34 +750,34 @@ kable(head(single_agent_test, 12), digits = 3)
 #
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   library(grid)
-
+  
   # Make a list from the ... arguments and plotlist
   plots <- c(list(...), plotlist)
-
+  
   numPlots = length(plots)
-
+  
   # If layout is NULL, then use 'cols' to determine layout
   if (is.null(layout)) {
     # Make the panel
     # ncol: Number of columns of plots
     # nrow: Number of rows needed, calculated from # of cols
     layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
+                     ncol = cols, nrow = ceiling(numPlots/cols))
   }
-
- if (numPlots==1) {
+  
+  if (numPlots==1) {
     print(plots[[1]])
-
+    
   } else {
     # Set up the page
     grid.newpage()
     pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
+    
     # Make each plot, in the correct location
     for (i in 1:numPlots) {
       # Get the i,j matrix positions of the regions that contain this subplot
       matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
+      
       print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
                                       layout.pos.col = matchidx$col))
     }
@@ -779,11 +785,49 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 plots <- list()  # new empty list
-for (i in 1:6) {
+for (i in 1:12) {
   single_agent_test <- sim_single_agent(months = n_months)
-  p1 = ggplot(single_agent_test, aes(month, is_in_prison, group = 1)) + geom_line()
+  single_agent_test$month <- as.numeric(single_agent_test$month)
+  p1 = ggplot(single_agent_test, aes(month, is_in_prison, group = 1)) + 
+  geom_line() + labs(y = "", x = "")
   plots[[i]] <- p1  # add each plot into plot list
 }
-multiplot(plotlist = plots, cols = 3)
+multiplot(plotlist = plots, cols = 4)
+```
+
+Instead of 12, however, the final model will peform `r comma(n_agents)` simulations, summing prison time, parole, and all of the costs measured for each individual simulation.  
+
+A portion of these will always remain flat - meaning the person will stay out of prison for the entire 5 years. For the remainder of parolees who recidivate, some will go in and out quickly on technical violations, while others will commit serious crimes and stay in for longer sentences.  
+
+
+
+##### Pagebreak
+
+# Results: No Intervention
+
+```{r, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
+multi_agent_test <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+## Description:
+These are the results of running an agent-based simulation `r comma(n_agents)` times with all of the assumptions listed above. 
+
+
+## Statistics:
+* The average total cost per parolee per year was `r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`, , with a standard deviation of `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`.
+* The median was `r dollar(round(median(multi_agent_test$avg_total_cost_per_yr)))`.
+* The maximum taxpayer cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. 
+* On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+* Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
+
+
+```{r cost, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  ylab("# of Simulations") +
+  xlab("Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
 ```
 
