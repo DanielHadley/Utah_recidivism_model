@@ -457,7 +457,8 @@ As described above, the [Cost of Crime Report](http://www.justice.utah.gov/Docum
 
 ## Assumptions:
 * Once released, a parolee will spend about `r percent(prob_of_shelter)` of his or her time, on average, in a shelter. This is based on data from the state of California, where "10% of the state’s parolees are homeless," according to [this report](http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf).
-* Parolees will use DWS services at rates similar to the average childless male who utilizes these services. 
+* Parolees will use DWS services at rates similar to the average childless male who utilizes these services.
+* Apart from recidivism, most probabilities are not conditional in this model. This simplifies the analysis, and helps to find averages, instead of extreme outliers. 
 * To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 anually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
 * I assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison.
 * DHS costs include some inpatient and outpatient care (e.g., methadone), but I do not count costs from emergency room visits and other health expenses outside of DHS  
@@ -712,6 +713,7 @@ n_months = 60
 
 ## Assumptions:
 * It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomolous results.
+ 
 
 ```{r, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
@@ -819,15 +821,15 @@ These are the results of running an agent-based simulation `r comma(n_agents)` t
 * The median was `r dollar(round(median(multi_agent_test$avg_total_cost_per_yr)))`.
 * The maximum taxpayer cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. 
 * On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
-* Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost. 
+* Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost.
+* This is because, even accounting for JRI, the average number of prison days per year for this group was `r round((mean(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`, with a standard deviation of `r round((sd(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`. The median was `r round((median(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`.  
 
 
 ```{r cost, echo=FALSE}
 # plot the hist
 ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) + 
   geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
-  ylab("# of Simulations") +
-  xlab("Average Total Cost Per Year") +
+  labs(title = "Histogram of Annual Costs", y = "# of Simulations", x = "Average Total Cost Per Year") +
   scale_x_continuous(labels=dollar)
 ```
 
