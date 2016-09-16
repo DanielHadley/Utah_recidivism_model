@@ -165,9 +165,9 @@ I pieced this data together using a an email from Julie Christensen, which conta
 
 
 ## Statistics
-* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes commited while off parole. It is also the least expensive at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Property"] + prison_terms$police_cost[prison_terms$offense_type == "Property"]), 2))` (court and policing costs).
+* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes committed while off parole. It is also the least expensive at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Property"] + prison_terms$police_cost[prison_terms$offense_type == "Property"]), 2))` (court and policing costs).
 * Murder is the least likely, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`, but the most expensive by far at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Murder"] + prison_terms$police_cost[prison_terms$offense_type == "Murder"]), 2))`
-* When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurances. 
+* When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurrences. 
 
 The following table shows these frequencies and costs (for court and policing).
 
@@ -226,7 +226,7 @@ The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports
 
 
 ## Assumptions:
-* The JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. This is just a guess as there are not enough empirical datapoints to confirm what the JRI will do to time served, but it is almost certain that sentences will be reduced. 
+* The JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. This is just a guess as there are not enough empirical data points to confirm what the JRI will do to time served, but it is almost certain that sentences will be reduced. 
 * The average prison sentence for technical violations will go from 15 months to approximately `r parole_violation_MTS_JRI`. This is also a guess based on the new [sentencing guidelines](http://www.utah.gov/pmn/files/172049.pdf).
 * The average parole sentence will go from three years to `r parole_length_JRI` months for those who exhibit good behavior, as per [this](http://law.justia.com/codes/utah/2006/title76/76_03009.html) document. 
 
@@ -481,7 +481,7 @@ As described above, the [Cost of Crime Report](http://www.justice.utah.gov/Docum
 * Once released, a parolee will spend about `r percent(prob_of_shelter)` of his or her time, on average, in a shelter. This is based on data from the state of California, where "10% of the state’s parolees are homeless," according to [this report](http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf).
 * Parolees will use DWS services at rates similar to the average childless male who utilizes these services.
 * Apart from recidivism, most probabilities are not conditional in this model. This simplifies the analysis, and helps to find averages, instead of extreme outliers. 
-* To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 anually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
+* To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 annually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
 * I assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison.
 * DHS costs include some inpatient and outpatient care (e.g., methadone). I also assume that the average parolee will visit the ER two times per year, while free, at an average cost of `r dollar(round(ambulance + ER))` per trip.  
 
@@ -506,7 +506,7 @@ Although this does not have all of the features commonly associated with an [age
 
 
 ## Sources:
-I had the idea to use an agent-based model when it occured to me how difficult it would be to calculate costs for parolees given that they are likely to move in and out of the prison system multiple times. I loosely based my model on the principles from [this article](http://www.babelgraph.org/wp/?p=237)
+I had the idea to use an agent-based model when it occurred to me how difficult it would be to calculate costs for parolees given that they are likely to move in and out of the prison system multiple times. I loosely based my model on the principles from [this article](http://www.babelgraph.org/wp/?p=237)
 
 
 The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month. The conditional probability of continued freedom is given by:  
@@ -764,7 +764,7 @@ n_months = 60
 ```
 
 ## Assumptions:
-* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomolous results.
+* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomalous results.
  
 
 ```{r, echo=FALSE}
@@ -788,7 +788,7 @@ ggplot(single_agent_test, aes(month, is_in_prison, group = 1)) +
 ##### Pagebreak
 
 ## Multiple Agent Simulation
-The power of this model comes from tracking the outcomes of multiple simulations. For each one, we track time in and out of prison and the associated costs. This allows us to answer the question of what would happen if we recuded recidivsm among the COD population. To help visualize this, here is a matrix of 12 simulations using the same chart format from the previous page:  
+The power of this model comes from tracking the outcomes of multiple simulations. For each one, we track time in and out of prison and the associated costs. This allows us to answer the question of what would happen if we reduced recidivsm among the COD population. To help visualize this, here is a matrix of 12 simulations using the same chart format from the previous page:  
 
 ```{r multiple plots, echo=FALSE}
 # First a function to plot multiple plots in one
@@ -849,7 +849,7 @@ for (i in 1:12) {
 multiplot(plotlist = plots, cols = 4)
 ```
 
-Instead of 12, however, the final model will peform `r comma(n_agents)` simulations, summing prison time, parole, and all of the costs measured for each individual simulation.  
+Instead of 12, however, the final model will perform `r comma(n_agents)` simulations, summing prison time, parole, and all of the costs measured for each individual simulation.  
 
 A portion of these will always remain flat - meaning the person will stay out of prison for the entire 5 years. For the remainder of parolees who recidivate, some will go in and out quickly on technical violations, while others will commit serious crimes and stay in for longer sentences.  
 
@@ -909,7 +909,7 @@ ggplot(multi_agent, aes(avg_total_cost_per_yr)) +
 ## Caveat:
 The true costs are almost certainly higher and more dispersed around the mean. By focusing on direct costs, being conservative, and using averages and standard probabilities (rather than conditional ones), this model aims to provide a defensible, if somewhat low, annual cost per parolee. 
 
-The one area where the model is the most likely to capture the full costs is prison. By using the total annual cost of prison, the conditional probability of recidivating, and assuming that a re-arrest will almost immediatly result in further prison time, this model is most aggresive in calculating those costs. 
+The one area where the model is the most likely to capture the full costs is prison. By using the total annual cost of prison, the conditional probability of recidivating, and assuming that a re-arrest will almost immediately result in further prison time, this model is most aggressive in calculating those costs. 
 
 
 
@@ -937,7 +937,7 @@ y2 <- mean(multi_agent_post$avg_prison_cost_per_yr)
 ## Statistics:
 * Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r dollar(round(y1 - y2))`, or `r percent((y2 - y1) / y1)`.
 * The average number of prison days per year for this group was `r round(mean(multi_agent_post$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`.
-* The most significant reduction is in the median prison days per year. In the first simulation of the COD group (with no intervention), the median was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`. In the simulation of the COD group post-tretment, that reduced to `r round(median(multi_agent_post$avg_prison_time_per_yr) * 30.5)` prison days per year.
+* The most significant reduction is in the median prison days per year. In the first simulation of the COD group (with no intervention), the median was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`. In the simulation of the COD group post-treatment, that reduced to `r round(median(multi_agent_post$avg_prison_time_per_yr) * 30.5)` prison days per year.
 * This is partially because reducing recidivism by `r percent(recid_reduction_post)` will ensure that a much larger portion of parolees will avoid prison.  
 
 ```{r returns_post, echo=FALSE, fig.height=2.5}
@@ -962,7 +962,7 @@ multi_agent_post_o <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
 
 
 ## Description:
-These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post_optimistic)` instead of `r percent(recid_reduction_post)`. I also examine some of the other costs, and what would happend if those were reduced. 
+These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post_optimistic)` instead of `r percent(recid_reduction_post)`. I also examine some of the other costs, and what would happen if those were reduced. 
 
 
 
