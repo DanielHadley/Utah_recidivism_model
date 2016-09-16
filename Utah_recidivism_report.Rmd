@@ -228,7 +228,7 @@ The [Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports
 ## Assumptions:
 * The JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. This is just a guess as there are not enough empirical datapoints to confirm what the JRI will do to time served, but it is almost certain that sentences will be reduced. 
 * The average prison sentence for technical violations will go from 15 months to approximately `r parole_violation_MTS_JRI`. This is also a guess based on the new [sentencing guidelines](http://www.utah.gov/pmn/files/172049.pdf).
-* The average parole sentence will go from three years to `r parole_length_JRI <- 18` months for those who exhibit good behavior, as per [this](http://law.justia.com/codes/utah/2006/title76/76_03009.html) document. 
+* The average parole sentence will go from three years to `r parole_length_JRI` months for those who exhibit good behavior, as per [this](http://law.justia.com/codes/utah/2006/title76/76_03009.html) document. 
 
 
 ## Statistics
@@ -442,7 +442,29 @@ calc_total_DWS_DHS_costs <- function(m.is_in_prison){
   
 }
 
+
+# Emergency room
+# average 2 visits per year, while out of prison, seems reasonable
+# ambulance costs: http://www.deseretnews.com/article/705273784/Many-Utahns-refuse-to-ride-in-ambulance.html?pg=all
+# Emergency room : http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
+prob_of_ER_visit <- .16  # two per year - your chance per month
+ambulance <- 1200
+ER <- 1200
+
+calc_total_ER_costs <- function(m.is_in_prison){
+  
+  did_visit <- ifelse(m.is_in_prison == 1, 0,
+                      sample(x = (c(1,0)), 1, 
+                             prob = c(prob_of_ER_visit, 1 - prob_of_ER_visit)))
+  
+  cost <- ifelse(did_visit == 1, ambulance + ER, 0)
+  
+  return(cost)
+  
+}
+
 ```
+
 
 
 # Costs
@@ -461,7 +483,7 @@ As described above, the [Cost of Crime Report](http://www.justice.utah.gov/Docum
 * Apart from recidivism, most probabilities are not conditional in this model. This simplifies the analysis, and helps to find averages, instead of extreme outliers. 
 * To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 anually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
 * I assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison.
-* DHS costs include some inpatient and outpatient care (e.g., methadone), but I do not count costs from emergency room visits and other health expenses outside of DHS  
+* DHS costs include some inpatient and outpatient care (e.g., methadone). I also assume that the average parolee will visit the ER two times per year, while free, at an average cost of `r dollar(round(ambulance + ER))` per trip.  
 
 
 ## Statistics
@@ -554,6 +576,7 @@ sim_single_agent <- function(months) {
   
   # set up the data frame
   df <- data.frame(month=numeric(0),
+                   year=numeric(0),
                    months_free=numeric(0),
                    rearrested_or_not=numeric(0),
                    prison_sentence=numeric(0),
@@ -568,13 +591,17 @@ sim_single_agent <- function(months) {
                    is_in_shelter=numeric(0),
                    total_shelter_costs=numeric(0),
                    total_parole_costs=numeric(0),
-                   total_DWS_DHS_costs=numeric(0))
+                   total_DWS_DHS_costs=numeric(0),
+                   total_ER_costs=numeric(0))
   
   # loop through each month and see what happens			
   for (month in 1:months) {
     
     ### generate action for each month ###
     m.month <- month
+    
+    ### year
+    m.year <- ceiling(m.month / 12)
     
     # Dependent on whether they were arrested or not
     m.months_free <- calc_months_free(m.month, m.prison_sentence, tmp.months_free)
@@ -624,14 +651,17 @@ sim_single_agent <- function(months) {
     # DWS
     m.total_DWS_DHS_costs <- calc_total_DWS_DHS_costs(m.is_in_prison)
     
+    # Emergency room
+    m.total_ER_costs <- calc_total_ER_costs(m.is_in_prison)
+    
     
     # add month to the data frame
     df[month,] <- 
-      c(m.month, m.months_free, m.rearrested_or_not, m.prison_sentence, 
+      c(m.month, m.year, m.months_free, m.rearrested_or_not, m.prison_sentence, 
         m.crime_type, m.is_in_prison, m.is_on_parole, m.parole_sentence, 
         m.marginal_prison_costs, m.total_prison_costs, m.total_court_costs, 
         m.total_policing_costs, m.is_in_shelter, m.total_shelter_costs, 
-        m.total_parole_costs, m.total_DWS_DHS_costs)
+        m.total_parole_costs, m.total_DWS_DHS_costs, m.total_ER_costs)
     
     
     # Make temporary vector for determining months free in the next pass
@@ -659,12 +689,17 @@ sim_multi_agents <- function(n_agents, n_months){
   
   # set up the data frame
   df <- data.frame(prison_time=numeric(0),
+                   avg_prison_time_per_yr=numeric(0),
                    months_free=numeric(0),
-                   prison_costs=numeric(0),
+                   total_prison_costs=numeric(0),
                    avg_prison_cost_per_yr=numeric(0),
+                   median_prison_cost_per_yr=numeric(0),
+                   prison_cost_yr_one=numeric(0),
                    arrests=numeric(0),
                    total_costs=numeric(0),
-                   avg_total_cost_per_yr=numeric(0))
+                   avg_total_cost_per_yr=numeric(0),
+                   median_total_cost_per_yr=numeric(0),
+                   avg_other_cost_per_yr=numeric(0))
   
   # loop through each month and see what happens			
   for (agent in 1:n_agents) {
@@ -672,32 +707,49 @@ sim_multi_agents <- function(n_agents, n_months){
     ### generate action for each person ###
     single_agent <- sim_single_agent(n_months)
     
+    # Get total costs df
+    total_costs_df <- single_agent %>% 
+      select(starts_with("total"))
+    # Make numeric
+    total_costs_df[] <- lapply(total_costs_df, as.numeric) 
+    # Get a total column
+    total_costs_df$total <- rowSums(total_costs_df)
+    
+    # Add it back in and remove the df
+    single_agent$total_costs <- total_costs_df$total
+    rm(total_costs_df)
+    
+    ### And a summary table for each year ###
+    by_year <- single_agent %>% 
+      group_by(year) %>% 
+      summarise(total_prison_costs = sum(as.numeric(total_prison_costs)),
+                total_costs = sum(as.numeric(total_costs)),
+                total_prison_time = sum(as.numeric(is_in_prison))) %>% 
+      mutate(total_other_costs = total_costs - total_prison_costs)
+    
     # Sum things that happend to the agent
     a.prison_time <- sum(as.numeric(single_agent$is_in_prison))
+    a.avg_prison_time_per_yr <- mean(by_year$total_prison_time)
     a.months_free <- 60 - a.prison_time
-    a.total_prison_costs <- sum(as.numeric(single_agent$total_prison_costs))
-    a.avg_prison_cost_per_yr <- a.total_prison_costs / (n_months / 12)
+    a.total_prison_costs <- sum(by_year$total_prison_costs)
+    a.avg_prison_cost_per_yr <- mean(by_year$total_prison_costs)
+    a.median_prison_cost_per_yr <- median(by_year$total_prison_costs)
+    a.prison_cost_yr_one <- by_year$total_prison_costs[1]
     a.arrests <- sum(as.numeric(single_agent$rearrested_or_not))
-    
-    # Get total costs
-    total_costs <- single_agent %>% 
-      select(starts_with("total"))
-    
-    total_costs <- sapply(total_costs, as.numeric)
-    a.total_costs <- sum(colSums(total_costs))
-    
-    a.avg_total_cost_per_yr <- a.total_costs / (n_months / 12)
-    
+    a.total_costs <- sum(by_year$total_costs)
+    a.avg_total_cost_per_yr <- mean(by_year$total_costs)
+    a.median_total_cost_per_yr <- median(by_year$total_costs)
+    a.avg_other_cost_per_yr <- mean(by_year$total_other_costs)
     
     # add month to the data frame
     df[agent,] <- 
-      c(a.prison_time, a.months_free, a.total_prison_costs, a.avg_prison_cost_per_yr,
-        a.arrests, a.total_costs, a.avg_total_cost_per_yr)
+      c(a.prison_time, a.avg_prison_time_per_yr, a.months_free, a.total_prison_costs, 
+        a.avg_prison_cost_per_yr, a.median_prison_cost_per_yr, a.prison_cost_yr_one,
+        a.arrests, a.total_costs, a.avg_total_cost_per_yr, a.median_total_cost_per_yr,
+        a.avg_other_cost_per_yr)
     
   }
   
-  df <- df %>% 
-    mutate(avg_other_cost_per_yr = avg_total_cost_per_yr - avg_prison_cost_per_yr)
   
   # output results
   return (df)
@@ -723,7 +775,7 @@ single_agent_test <- sim_single_agent(months = n_months)
 ### Single Agent 
 When run for a single person, the resulting data contain `r n_months / 12` rows, each representing a month in the life of the simulated parolee. The columns track outcomes of the simulation and their associated costs: `r names(single_agent_test)`. 
 
-The main driver of costs and savings is prison time, which is represented by a binary [0,1] vector, where 1 means "in prison." For a single agent, that could be represented in the following chart, where the X-axis is time in months, and the Y-axis is prison status:
+The main driver of costs and savings is prison time, which is represented by a binary [0,1] variable, where 1 means "in prison." For a single agent, that could be represented in the following chart, where the X-axis is time in months, and the Y-axis is prison status:
 
 ```{r, echo=FALSE}
 # Prep data
@@ -809,7 +861,14 @@ A portion of these will always remain flat - meaning the person will stay out of
 
 ```{r, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
-multi_agent_test <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+multi_agent <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+```{r, echo=FALSE}
+# This is for getting the # who go back more than twice
+more_than_two <- multi_agent %>% 
+  filter(arrests > 2) %>% 
+  nrow()
 ```
 
 ## Description:
@@ -817,19 +876,71 @@ These are the results of running an agent-based simulation `r comma(n_agents)` t
 
 
 ## Statistics:
-* The average total cost per parolee per year was `r dollar(round(mean(multi_agent_test$avg_total_cost_per_yr)))`, , with a standard deviation of `r dollar(round(sd(multi_agent_test$avg_total_cost_per_yr)))`.
-* The median was `r dollar(round(median(multi_agent_test$avg_total_cost_per_yr)))`.
-* The maximum taxpayer cost in this simulation was `r dollar(round(max(multi_agent_test$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. 
-* On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent_test$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
-* Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent_test$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent_test$avg_prison_cost_per_yr) / mean(multi_agent_test$avg_total_cost_per_yr))` of the total cost.
-* This is because, even accounting for JRI, the average number of prison days per year for this group was `r round((mean(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`, with a standard deviation of `r round((sd(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`. The median was `r round((median(multi_agent_test$prison_time)) / (n_months / 12) * 30.5)`.  
+* The average total cost per parolee per year was `r dollar(round(mean(multi_agent$avg_total_cost_per_yr)))`, , with a standard deviation of `r dollar(round(sd(multi_agent$avg_total_cost_per_yr)))`.
+* The median was `r dollar(round(median(multi_agent$avg_total_cost_per_yr)))`.
+* The maximum annual taxpayer cost in this simulation was `r dollar(round(max(multi_agent$avg_total_cost_per_yr)))`. This would likely be someone who spent the majority of the 5 years in prison. 
+* On the other end are parolees who cost the state less than `r dollar(round(quantile((multi_agent$avg_total_cost_per_yr), .25)))`, which is the bottom quartile of annual costs. This group likely stayed out of prison, or only went back for a brief time period. Their costs are more associated with parole, health benefits, and shelters, in certain cases.
+* Prison remains the largest cost factor for parolees. The average simulation resulted in prison costs of `r dollar(round(mean(multi_agent$avg_prison_cost_per_yr)))` per year, or `r percent(mean(multi_agent$avg_prison_cost_per_yr) / mean(multi_agent$avg_total_cost_per_yr))` of the total cost.
+* This is because, even accounting for JRI, the average number of prison days per year for this group was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`. The median was `r round(median(multi_agent$avg_prison_time_per_yr) * 30.5)`.
+* More than half of the COD population will return to prison within 5 years. In fact, many will return multiple times. In these simulations, `r percent(more_than_two / nrow(multi_agent))` returned more than twice:
 
+```{r returns, echo=FALSE, fig.height=2.5}
+# plot the hist
+ggplot(multi_agent, aes(arrests)) + 
+  geom_bar(fill="#c0392b", alpha=0.75, color = "white") +
+  ylab("# of Simulations") +
+  xlab("# of re-arrests during entire simulation")
+```
+
+
+
+##### Pagebreak
+The following histogram shows the average annual costs for the simulated COD population. The x-axis shows annual costs, starting at `r dollar(round(min(multi_agent$avg_total_cost_per_yr)))` and ending in the maximum, `r dollar(round(max(multi_agent$avg_total_cost_per_yr)))`. The y-axis shows the number of simulations that resulted in the average cost represented on the x-axis. The graph has two distinct "peaks." The first one appears to represent parolees who did not return to prison, or only went back briefly. The second group likely went back for the average amount of time, which for the entire `r n_months/12` year simulation was `r round(mean(multi_agent$prison_time))` months.   
 
 ```{r cost, echo=FALSE}
 # plot the hist
-ggplot(multi_agent_test, aes(avg_total_cost_per_yr)) + 
+ggplot(multi_agent, aes(avg_total_cost_per_yr)) + 
   geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
   labs(title = "Histogram of Annual Costs", y = "# of Simulations", x = "Average Total Cost Per Year") +
   scale_x_continuous(labels=dollar)
 ```
 
+
+## Caveat:
+The true costs are almost certainly higher and more dispersed around the mean. By focusing on direct costs, being conservative, and using averages and standard probabilities (rather than conditional ones), this model aims to provide a defensible, if somewhat low, annual cost per parolee. 
+
+The one area where the model is the most likely to capture the full costs is prison. By using the total annual cost of prison, the conditional probability of recidivating, and assuming that a re-arrest will almost immediatly result in further prison time, this model is most aggresive in calculating those costs. 
+
+
+
+
+##### Pagebreak
+
+# Results: Post-Intervention
+
+```{r, echo=FALSE}
+recid_reduction_post <- .15
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post)
+multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+```{r, echo=FALSE}
+# This is for getting the # who go back more than twice
+more_than_two <- multi_agent %>% 
+  filter(arrests > 2) %>% 
+  nrow()
+```
+
+## Description:
+These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post)`. 
+
+
+
+```{r, echo=FALSE}
+y1 <- mean(multi_agent$avg_prison_cost_per_yr)
+y2 <- mean(multi_agent_post$avg_prison_cost_per_yr)
+```
+## Statistics:
+* Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r percent((y2 - y1) / y1)`.
+* The average number of prison days per year for this group was `r round(mean(multi_agent_post$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`.
+* The most significant reduction is in the median prison days per year. In the first simulation of the COD group (with no intervention), the median was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`. In the simulation of the COD group post tretment, that reduced to `r round(median(multi_agent_post$avg_prison_time_per_yr) * 30.5)` prison days per year. 
