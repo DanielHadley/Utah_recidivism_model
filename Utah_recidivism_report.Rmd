@@ -9,7 +9,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache=TRUE)
 
-set.seed(1876)
+set.seed(123)
 
 # Load the packages neeed and set working directory
 setwd("~/Github/Utah_recidivism_model/")
@@ -924,12 +924,6 @@ survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction
 multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
 ```
 
-```{r, echo=FALSE}
-# This is for getting the # who go back more than twice
-more_than_two <- multi_agent %>% 
-  filter(arrests > 2) %>% 
-  nrow()
-```
 
 ## Description:
 These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post)`. 
@@ -941,6 +935,46 @@ y1 <- mean(multi_agent$avg_prison_cost_per_yr)
 y2 <- mean(multi_agent_post$avg_prison_cost_per_yr)
 ```
 ## Statistics:
-* Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r percent((y2 - y1) / y1)`.
+* Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r dollar(round(y1 - y2))`, or `r percent((y2 - y1) / y1)`.
 * The average number of prison days per year for this group was `r round(mean(multi_agent_post$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`.
-* The most significant reduction is in the median prison days per year. In the first simulation of the COD group (with no intervention), the median was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`. In the simulation of the COD group post tretment, that reduced to `r round(median(multi_agent_post$avg_prison_time_per_yr) * 30.5)` prison days per year. 
+* The most significant reduction is in the median prison days per year. In the first simulation of the COD group (with no intervention), the median was `r round(mean(multi_agent$avg_prison_time_per_yr) * 30.5)`. In the simulation of the COD group post-tretment, that reduced to `r round(median(multi_agent_post$avg_prison_time_per_yr) * 30.5)` prison days per year.
+* This is partially because reducing recidivism by `r percent(recid_reduction_post)` will ensure that a much larger portion of parolees will avoid prison.  
+
+```{r returns_post, echo=FALSE, fig.height=2.5}
+# plot the hist
+ggplot(multi_agent_post, aes(arrests)) + 
+  geom_bar(fill="#c0392b", alpha=0.75, color = "white") +
+  ylab("# of Simulations") +
+  xlab("# of re-arrests during entire simulation")
+```
+
+
+
+##### Pagebreak
+
+# Results: Sensitivity Analysis
+
+```{r, echo=FALSE}
+recid_reduction_post_optimistic <- .25
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post_optimistic)
+multi_agent_post_o <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+
+## Description:
+These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post_optimistic)` instead of `r percent(recid_reduction_post)`. I also examine some of the other costs, and what would happend if those were reduced. 
+
+
+
+```{r, echo=FALSE}
+y1 <- mean(multi_agent$avg_prison_cost_per_yr)
+y2 <- mean(multi_agent_post_o$avg_prison_cost_per_yr)
+```
+## Statistics:
+* Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r dollar(round(y1 - y2))`, or `r percent((y2 - y1) / y1)`.
+* The average number of prison days per year for this group was `r round(mean(multi_agent_post_o$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`.
+
+## Other Assumptions
+So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, we will also expect to see ancillary benefits. Returning to the more conservative scenario, where recidivism is reduced by `r percent(recid_reduction_post)`, we might expect to see other costs reduced.
+
+* For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
