@@ -192,7 +192,7 @@ When run for a single person, the resulting data contain 5 rows, each representi
 
 The main driver of costs and savings is prison time, which is represented by a binary \[0,1\] variable, where 1 means "in prison." For a single agent, that could be represented in the following chart, where the X-axis is time in months, and the Y-axis is prison status:
 
-![](Utah_recidivism_report_online_files/figure-markdown_github/unnamed-chunk-8-1.png)
+![](Utah_recidivism_report_online_files/figure-markdown_github/unnamed-chunk-9-1.png)
 
 Multiple Agent Simulation
 -------------------------
