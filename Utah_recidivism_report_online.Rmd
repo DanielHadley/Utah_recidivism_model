@@ -507,6 +507,18 @@ Although this does not have all of the features commonly associated with an [age
 I had the idea to use an agent-based model when it occurred to me how difficult it would be to calculate costs for parolees given that they are likely to move in and out of the prison system multiple times. I loosely based my model on the principles from [this article](http://www.babelgraph.org/wp/?p=237)
 
 
+
+```{JavaScript echo=FALSE}
+<script type="text/javascript" 
+    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+<script type="text/javascript">MathJax.Hub.Config({tex2jax: {processEscapes: true, 
+    processEnvironments: false, inlineMath: [ ['$','$'] ], 
+    displayMath: [ ['$$','$$'] ] }, 
+    asciimath2jax: {delimiters: [ ['$','$'] ] }, 
+    "HTML-CSS": {minScaleAdjust: 125 } });
+</script>
+```
 The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month. The conditional probability of continued freedom is given by:  
 
 $$P_i = \frac{f_i - r_i}{f_i}$$
