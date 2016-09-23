@@ -1,5 +1,5 @@
 ---
-title: "The Costs and Benefits of Reducing Recidivsm in Utah"
+title: "The Benefits of Reducing Recidivsm in Utah"
 output: 
     word_document:
       reference_docx: mystyles.docx
@@ -24,7 +24,7 @@ library(scales)
 
 
 
-This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the costs and benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occurring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
+This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occurring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
 
 The potential benefits of reducing jail time for the COD population are numerous. In this report, we focus mainly on the economic benefits that accrue to the state of Utah, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
 
@@ -960,29 +960,31 @@ ggplot(multi_agent_post, aes(arrests)) +
 
 ##### Pagebreak
 
-# Results: Sensitivity Analysis
-
 ```{r, echo=FALSE}
-recid_reduction_post_optimistic <- .25
-survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post_optimistic)
-multi_agent_post_o <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+to_combine_pre <- multi_agent %>% 
+  select(avg_prison_cost_per_yr) %>% 
+  mutate(Pre_or_Post = "Pre")
+
+combined_pre_po <- multi_agent_post %>% 
+  select(avg_prison_cost_per_yr) %>% 
+  mutate(Pre_or_Post = "Post") %>% 
+  rbind(to_combine_pre)
+  
 ```
 
 
-## Description:
-These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post_optimistic)` instead of `r percent(recid_reduction_post)`. I also examine some of the other costs, and what would happen if those were reduced. 
+# Results: Summary
+As described above, by reducing recidivism by `r percent(recid_reduction_post)`, this model projects that the average annual prison costs for the COD group would be reduced by `r dollar(round(y1 - y2))`, or `r percent((y2 - y1) / y1)`. Here is a chart of the distributions of the prison costs pre and post, for comparison.
 
-
-
-```{r, echo=FALSE}
-y1 <- mean(multi_agent$avg_prison_cost_per_yr)
-y2 <- mean(multi_agent_post_o$avg_prison_cost_per_yr)
+```{r cdf, echo=FALSE}
+# plot the hist
+ggplot(combined_pre_po, aes(x = avg_prison_cost_per_yr, fill = Pre_or_Post)) + geom_density(alpha = 0.5) +
+  labs(title = "Density Plot of Annual Prison Costs", y = "% of Simulations", x = "Average Prison Cost Per Year") +
+  scale_x_continuous(labels=dollar) + scale_y_continuous(labels = percent)
 ```
-## Statistics:
-* Average annual prison costs are reduced from `r dollar(round(y1))` to `r dollar(round(y2))`, which is a reduction of `r dollar(round(y1 - y2))`, or `r percent((y2 - y1) / y1)`.
-* The average number of prison days per year for this group was `r round(mean(multi_agent_post_o$avg_prison_time_per_yr) * 30.5)`, with a standard deviation of `r round(sd(multi_agent$avg_prison_time_per_yr) * 30.5)`.
 
-## Other Assumptions
-So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, we will also expect to see ancillary benefits. Returning to the more conservative scenario, where recidivism is reduced by `r percent(recid_reduction_post)`, we might expect to see other costs reduced.
 
-* For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
+### Bottom Line
+So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, we will also expect to see ancillary benefits. For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
+
+Given these assumptions, we estimate that a program that reduces recidivism by `r percent(recid_reduction_post)` could lead to gross savings of approximately $3,500 per year, per parolee. 
