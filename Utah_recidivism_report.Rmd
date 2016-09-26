@@ -24,6 +24,11 @@ library(scales)
 
 
 
+![](dont_commit/logo.png)
+
+
+##### Pagebreak
+
 This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with a dual diagnosis. The state of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occurring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
 
 The potential benefits of reducing jail time for the COD population are numerous. In this report, we focus mainly on the economic benefits that accrue to the state of Utah, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
@@ -32,13 +37,11 @@ The challenge is determining how much time the average person from the COD demog
 
 
 ### Summary
-By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures on the order of $2,000 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
+By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
 
 There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of proiding intense support to this population. 
 
 
-
-![](dont_commit/logo.png)
 
 
 ##### Pagebreak
@@ -489,7 +492,7 @@ These are assumptions, estimates, and past data about the direct taxpayer costs 
 
 
 ## Sources:
-As described above, [Utah's of Crime](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) report contains estimates of the taxpayer costs of crimes, from which we take the policing and court costs. The costs of prison, parole, and shelters come from two PDF reports given to the Center by the Department of Corrections: one that details the cost per day for prisons, and one for parole services, including costs for Community Correctional Centers (CCC). Aggregated DWS and DHS cost data were given to the Center by the respective agencies.      
+As described above, [Utah's Cost of Crime](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) report contains estimates of the taxpayer costs of crimes, from which we take the policing and court costs. The costs of prison, parole, and shelters come from two PDF reports given to the Center by the Department of Corrections: one that details the cost per day for prisons, and one for parole services, including costs for Community Correctional Centers (CCC). Aggregated DWS and DHS cost data were given to the Center by the respective agencies.      
 
 
 ## Assumptions:
@@ -498,7 +501,7 @@ As described above, [Utah's of Crime](http://www.justice.utah.gov/Documents/CCJJ
 * To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 annually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
 * This model assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison, and that the probability of utilizing these services is not conditional on other variables.
 * DHS costs include some inpatient and outpatient care (e.g., methadone). We also assume that the average parolee will visit the ER two times per year, while free, at an average cost of `r dollar(round(ambulance + ER))` per trip.
-* This model uses the total average daily cost of prison, which is approximately $81 per prisoner. While some would consider the marginal cost more useful, we feel the total cost is defensible given both that prisoners with COD likely use more services than average, and that the State is considering a new prison. 
+* This model uses the total average daily cost of prison, which is approximately $81 per prisoner. While some would consider the marginal cost more useful, we feel the total cost is defensible given these two considerations: 1. prisoners with COD likely use more services than average, 2. the State is considering building a new prison, so a significant reduction in the prison population could impact that decision. 
 
 
 
@@ -511,7 +514,7 @@ As described above, [Utah's of Crime](http://www.justice.utah.gov/Documents/CCJJ
 ## Description:
 [Note: this section is more technical. For the results, skip forward a couple pages]. 
 
-The process outlined below falls within a broad category called [agent-based models](https://en.wikipedia.org/wiki/Agent-based_model) (ABM), which wikipedia defines as "computational models for simulating the actions and interactions of autonomous agents with a view to assessing their effects on the system as a whole."
+The process outlined below falls within a broad category called [agent-based modeling](https://en.wikipedia.org/wiki/Agent-based_model) (ABM), which wikipedia defines as "computational models for simulating the actions and interactions of autonomous agents with a view to assessing their effects on the system as a whole."
 
 1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.
 2. Repeat this simulation thousands of times to see how the results vary.  
@@ -767,12 +770,12 @@ sim_multi_agents <- function(n_agents, n_months){
 
 
 ```{r model parameters, echo=FALSE}
-n_agents = 1000
+n_agents = 10000
 n_months = 60
 ```
 
 ## Assumptions:
-* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of at least `r n_agents` simulated agents. Shorter time frames with fewer simulations may lead to anomalous results.
+* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of `r comma(n_agents)` simulated agents. Shorter time frames with fewer simulations may lead to anomalous results.
  
 
 ```{r, echo=FALSE}
@@ -985,6 +988,6 @@ ggplot(combined_pre_po, aes(x = avg_prison_cost_per_yr, fill = Pre_or_Post)) + g
 
 
 ### Bottom Line
-So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, we will also expect to see ancillary benefits. For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
+So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, the State can also expect to see ancillary benefits. For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
 
 Given these assumptions, we estimate that a program that reduces recidivism by `r percent(recid_reduction_post)` could lead to gross savings of approximately $3,500 per year, per parolee. 
