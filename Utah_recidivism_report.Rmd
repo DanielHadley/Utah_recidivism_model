@@ -22,7 +22,11 @@ library(scales)
 # scriptsandstatistics.wordpress.com/2015/12/18/rmarkdown-how-to-inserts-page-breaks-in-a-ms-word-document/
 ```
 
-
+<br>
+<br>
+<br>
+<br>
+<br>
 
 ![](dont_commit/logo.png)
 
@@ -39,7 +43,7 @@ The challenge is determining how much time the average person from the COD demog
 ### Summary
 By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
 
-There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of proiding intense support to this population. 
+There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
 
 
 
@@ -157,13 +161,18 @@ prison_terms[8,1] <- ""
 prison_terms$frequency[is.na(prison_terms$frequency)] <- 0
 prison_terms$frequency_of_crime[is.na(prison_terms$frequency_of_crime)] <- 0
 
+# Update Cost of Crime numbers from constant 2010 dollars to 2016
+# This is the calculator: http://www.usinflationcalculator.com/
+prison_terms$court_cost <- prison_terms$court_cost * 1.1
+prison_terms$police_cost <- prison_terms$police_cost * 1.1
+
 ```
 
 
 # Crime Types
 
 ## Description:
-These data show the frequency of certain crime types among parolees. They differ from the survival curves in that they show not the time it takes to reoffend, but what type of crime is most likely to be involved in the event of a reoffense.  
+These data show the frequency of certain crime types among parolees. They differ from the survival curves in that they show not the time it takes to reoffend, but what type of crime is most likely to be involved in the event of a re-offense.  
 
 
 ## Sources:
@@ -173,7 +182,7 @@ Data on the courts and policing costs of various crimes come from a report by th
 
 
 ## Assumptions:
-* The crime type frequencies for a reoffense will be similar to those from the original offense.
+* The crime type frequencies for a re-offense will be similar to those from the original offense.
 * The Cost of Crime report did not include costs for a parole violation. This model assume those costs are similar to the costs of a property crime.  
 
 
@@ -991,3 +1000,41 @@ ggplot(combined_pre_po, aes(x = avg_prison_cost_per_yr, fill = Pre_or_Post)) + g
 So far, this report has examined only the cost savings of reductions in prison time. Presumably, by providing a higher level of care for the COD population, the State can also expect to see ancillary benefits. For example, if this treatment reduced costs other than ones associated with prison by `r percent(recid_reduction_post)`, there would be additional annual savings of `r dollar(round(recid_reduction_post * mean(multi_agent_post$avg_other_cost_per_yr)))` per parolee.
 
 Given these assumptions, we estimate that a program that reduces recidivism by `r percent(recid_reduction_post)` could lead to gross savings of approximately $3,500 per year, per parolee. 
+
+
+##### Pagebreak
+
+```{r, echo=FALSE}
+sensitivity_recid_reductions <- c(.05, .1, .15, .2, .25, .3, .35, .4)
+sensitivity_vector <- c()
+for (i in sensitivity_recid_reductions) {
+  survival_rates <- load_survival_data(i)
+  multi_agent_post <- sim_multi_agents(n_agents = 1000, n_months = 60)
+  m <- mean(multi_agent_post$avg_prison_cost_per_yr)
+  sensitivity_vector <- append(sensitivity_vector, m)
+}
+```
+
+# Appendix 
+## Sensitivity Analysis
+As described above, the main purpose of this model is to estimate the savings in prison costs as a function of recidivism rates. The following table shows the approximate relationship between a reduction in recidivism and the expected prison costs per parolee. What this shows is that on average, a 5% reduction in recidivism should lead to approximate cost savings of $470 per parolee per year (considering only the prison costs). 
+
+```{r, echo=FALSE}
+sensitivity_df <- data.frame(sensitivity_vector, sensitivity_recid_reductions)
+
+sensitivity_df_to_print <- sensitivity_df %>%
+  mutate("recidivism reduction" = percent(sensitivity_recid_reductions), "prison costs per parolee" = dollar(sensitivity_vector)) %>% 
+  select(-sensitivity_vector, -sensitivity_recid_reductions)
+        
+kable(head(sensitivity_df_to_print), digits = 3)
+
+rm(sensitivity_df_to_print)
+```
+
+The plot does a better job of showing the relationship. It is easier to see that larger savings are to be had on the first 5% to 15% reductions in recidivism, with smaller relative savings on reductions above that. 
+
+```{r, echo=FALSE, fig.height=2.5}
+ggplot(sensitivity_df, aes(x = sensitivity_recid_reductions, y = sensitivity_vector)) + geom_point() + labs(title = "Scatter Plot of Sensitivity Analysis", y = "Expected Prison Costs", x = "Recidivism Reduction") +
+  scale_x_continuous(labels=percent) + scale_y_continuous(labels = dollar)
+```
+
