@@ -33,11 +33,13 @@ library(scales)
 
 ##### Pagebreak
 
-This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with a dual diagnosis. The State of Utah has taken several principled actions to reduce recidivism and better address the needs of former prisoners, most notably the Justice Reinvestment Initiative (JRI). The program under consideration continues in that tradition by proposing to offer intensive case work services to parolees with co-occurring disorders (COD). The expectation is that these efforts will reduce recidivism, as they have in previous experiments. 
+This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with with co-occurring mental health and substance use disorders (COD). 
 
-The potential benefits of reducing jail time for the COD population are numerous. In this report, we focus mainly on the economic benefits that accrue to the state of Utah, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
+The potential benefits of reducing jail time for the COD population are numerous. The COD population recidivates at a much higher rate than the general population. Almost 75% return within three years of their release. In this report, we focus on the economic benefits of reducing recidivism among members of this group, paying particular attention to prison costs. 
 
-The challenge is determining how much time the average person from the COD demographic is expected to spend in prison, once released, and what reducing that is likely to save the State. This is a difficult prediction problem, given all of the factors; but we have created a model that does a reasonable job of simulating a person's chances of returning to prison. 
+Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. We can safely assume that prisoners with COD cost more than the average prisoner. This is probably true of parolees with COD as well. 
+
+To understand these costs, we have created a model of recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
 
 
 ### Summary
