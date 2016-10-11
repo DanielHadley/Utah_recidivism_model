@@ -781,7 +781,7 @@ sim_multi_agents <- function(n_agents, n_months){
 
 
 ```{r model parameters, echo=FALSE}
-n_agents = 10000
+n_agents = 100
 n_months = 60
 ```
 
@@ -1011,7 +1011,7 @@ sensitivity_recid_reductions <- c(.05, .1, .15, .2, .25, .3, .35, .4)
 sensitivity_vector <- c()
 for (i in sensitivity_recid_reductions) {
   survival_rates <- load_survival_data(i)
-  multi_agent_post <- sim_multi_agents(n_agents = 1000, n_months = 60)
+  multi_agent_post <- sim_multi_agents(n_agents = 10, n_months = 60)
   m <- mean(multi_agent_post$avg_prison_cost_per_yr)
   sensitivity_vector <- append(sensitivity_vector, m)
 }
