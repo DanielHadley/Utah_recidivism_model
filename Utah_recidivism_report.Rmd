@@ -22,43 +22,13 @@ library(scales)
 # scriptsandstatistics.wordpress.com/2015/12/18/rmarkdown-how-to-inserts-page-breaks-in-a-ms-word-document/
 ```
 
-<br>
-<br>
-<br>
-<br>
-<br>
-
-![](dont_commit/logo.png)
-
-
-##### Pagebreak
-
-This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with with co-occurring mental health and substance use disorders (COD). 
-
-The potential benefits of reducing jail time for the COD population are numerous. The COD population recidivates at a much higher rate than the general population. Almost 75% return within three years of their release. In this report, we focus on the economic benefits of reducing recidivism among members of this group, paying particular attention to prison costs. 
-
-Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. We can safely assume that prisoners with COD cost more than the average prisoner. This is probably true of parolees with COD as well. 
-
-To understand these costs, we have created a model of recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
-
-
-### Summary
-By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
-
-There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
-
-
-
-
-##### Pagebreak
-
-```{r recidivism rates, include=FALSE}
+```{r plot_rates, echo=FALSE}
 # A 10% reduction in recidivism 
 recid_reduction_JRI <- .10
 
 ## Load and clean the data ##
 # These are the national data
-survival_rates <- read.csv("./clean_data/mschpprts05f02.csv", 
+sr_baseline <- read.csv("./clean_data/mschpprts05f02.csv", 
                            stringsAsFactors = F) %>% 
   filter(X != "",
          X != "National") %>% 
@@ -103,53 +73,12 @@ sr_post_intervention$cum_per_of_reoffenders <- sr_post_intervention$In.state / s
 
 # Put them together to plot
 
-all_together <- data.frame(sr_post_intervention$cumulative_percent, sr_study_group$cumulative_percent, survival_rates$cumulative_percent)
+all_together <- data.frame(sr_post_intervention$cumulative_percent, sr_study_group$cumulative_percent, sr_baseline$cumulative_percent)
 
 all_together$months <- c(1:60)
+
 ```
 
-
-# Recidivism Rates
-
-## Description:
-This is the estimated percent of parolees who will return to prison within a given time after release. 
-
-
-## Sources:
-The kaplan-meier curves come from the Bureau of Justice Statistics, which compiles [national trends](http://www.bjs.gov/index.cfm?ty=pbdetail&iid=4986) on recidivism. The Utah Department of Corrections also provided recidivism rates for the 2012 release cohort, which allowed for tracking of the COD population over three years. Numbers from the pre-JRI period suggest that Utah is similar to national trends.
-
-
-## Assumptions:
-[It is worth noting that we can test the sensitivity of the model to these or any other assumptions described in this document]
-
-* We assume that survival curves for the COD population will bend in similar ways to national trends
-* Conservatively, we estimate that the JRI will reduce recidivism among the COD population by `r percent(recid_reduction_JRI)`. Data do not yet exist for Utah's recidivism rates post-JRI, so this estimate is based on conversations with those familiar with the reforms.  
-
-
-## Statistics
-* Pre-JRI, approximately `r percent(round(sr_study_group$cumulative_percent[12], 2))` of the COD population re-offended within one year.
-* Approximately `r percent(round(sr_study_group$cumulative_percent[36], 2))` re-offended within three years.
-* If, as this model assumes, the JRI reduces recidivism by `r percent(recid_reduction_JRI)`, there will still be `r percent(round(sr_post_intervention$cumulative_percent[36], 2))` of the COD population who recidivate within three years.
-
-
-##### Pagebreak
-The following chart shows estimated survival curves from national averages, the COD population pre-JRI, and post-JRI with a `r percent(recid_reduction_JRI)` reduction in recidivism. The X-axis is time in months over a period of five years. The Y-axis is the cumulative percent who recidivate at least once. The chart shows that recidivism is more likely in the first year, and then tapers off over time. This suggests that if a program is effective at helping people early on, it will be more effective than if it aims to help people several months removed from their release.   
-
-```{r pressure, echo=FALSE}
-# plot the curves
-ggplot(all_together, aes(months)) + 
-  geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
-  geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
-  geom_line(aes(y = survival_rates.cumulative_percent, colour = "National Trend")) +
-  labs(title = "Time to Recidivism", y = "Percent Who Recidivate") + 
-  scale_y_continuous(labels=percent)
-
-# And clean things up
-rm(all_together, sr_post_intervention, sr_study_group, survival_rates)
-```
-
-
-##### Pagebreak
 
 ```{r, echo=FALSE}
 prison_terms <- read.csv("./clean_data/prison_terms.csv", stringsAsFactors = FALSE) %>% 
@@ -170,49 +99,6 @@ prison_terms$police_cost <- prison_terms$police_cost * 1.1
 
 ```
 
-
-# Crime Types
-
-## Description:
-These data show the frequency of certain crime types among parolees. They differ from the survival curves in that they show not the time it takes to reoffend, but what type of crime is most likely to be involved in the event of a re-offense.  
-
-
-## Sources:
-Data on crime frequencies come from the Department of Corrections, which provided counts for the COD demographic. These data indicate that for the 2012 cohort, nearly 70% of prison returns were for a technical violation. This is slightly higher than for the general prison population, according to a report by the [CCJJ](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf). 
-
-Data on the courts and policing costs of various crimes come from a report by the CCJJ and faculty at the University of Utah titled [Utah Cost of Crime Report : Introduction to an Econometric Cost-Benefit Approach](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf).    
-
-
-## Assumptions:
-* The crime type frequencies for a re-offense will be similar to those from the original offense.
-* The Cost of Crime report did not include costs for a parole violation. This model assume those costs are similar to the costs of a property crime.  
-
-
-## Statistics
-* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes committed while off parole. It is also the least expensive at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Property"] + prison_terms$police_cost[prison_terms$offense_type == "Property"]), 2))` (court and policing costs).
-* Murder is the least likely, at less than `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`, but the most expensive by far at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Murder"] + prison_terms$police_cost[prison_terms$offense_type == "Murder"]), 2))`
-* When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurrences. 
-
-The following table shows these frequencies and costs (for court and policing).
-
-```{r, echo=FALSE}
-
-frequenceis_to_print <- prison_terms %>% 
-  mutate(cost = dollar(police_cost + court_cost)) %>% 
-  select(offense_type, frequency, frequency_of_crime, cost) %>% 
-  filter(offense_type != "") %>% 
-  mutate("off parole" = percent(frequency_of_crime),
-         "on parole" = percent(frequency)) %>% 
-  select(-frequency, -frequency_of_crime)
-
-kable(head(frequenceis_to_print, 10), digits = 3)
-
-rm(frequenceis_to_print)
-```
-
-
-
-##### Pagebreak
 
 ```{r, echo=FALSE}
 
@@ -240,48 +126,6 @@ parole_length_JRI <- 28
 
 ```
 
-
-# Prison Time Served
-
-## Description:
-If convicted, these data show the length of time a parolee can expect to spend in prison, on average, for the various crime types. 
-
-
-## Sources:
-The [2014 Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which we scale down to reflect changes from the JRI (as described below). 
-
-
-## Assumptions:
-* We conservatively assume that the JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. Data do not yet exist for Utah's prison sentences post-JRI, so this estimate is based on conversations with people familiar with the reforms. 
-* This model assumes that the average prison sentence for technical violations will go from 15 months to approximately `r parole_violation_MTS_JRI` months. This estimate is based on the new [sentencing guidelines](http://www.utah.gov/pmn/files/172049.pdf).
-* It also assumes that average parole sentence will go from three years to `r parole_length_JRI` months for those who exhibit good behavior, which is stipulated in the [earned-time credit program](http://corrections.utah.gov/index.php?option=com_content&view=category&id=31&Itemid=344). 
-
-
-## Statistics
-* Murder resulted in the longest average prison sentence at `r prison_terms$mean_time_served[prison_terms$offense_type == "Murder"]` months.
-* The second longest was for sex crimes: `r prison_terms$mean_time_served[prison_terms$offense_type == "Sex"]` months.
-
-Here is a table of the actual values and the estimated values for the post-JRI period.
-
-```{r, echo=FALSE}
-
-mts_to_print <- prison_terms %>%
-  filter(offense_type != "") %>% 
-  mutate("offense type" = offense_type, "mean time served" = mean_time_served,
-         "estimated MTS post-JRI" = mean_time_served_post_JRI) %>% 
-  select(-offense_type:-mean_time_served_post_JRI)  
-   
-
-kable(head(mts_to_print, 10), digits = 3)
-
-rm(mts_to_print)
-
-```
-
-
-
-
-##### Pagebreak
 
 ```{r the functions, echo=FALSE}
 ### These are the basis of the model, and also contain several assumptions
@@ -494,49 +338,6 @@ calc_total_ER_costs <- function(m.is_in_prison){
 
 ```
 
-
-
-# Costs
-
-## Description:
-These are assumptions, estimates, and past data about the direct taxpayer costs of caring for a parolee both in and out of prison.  
-
-
-## Sources:
-As described above, [Utah's Cost of Crime](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) report contains estimates of the taxpayer costs of crimes, from which we take the policing and court costs. The costs of prison, parole, and shelters come from two PDF reports given to the Center by the Department of Corrections: one that details the cost per day for prisons, and one for parole services, including costs for Community Correctional Centers (CCC). Aggregated DWS and DHS cost data were given to the Center by the respective agencies.      
-
-
-## Assumptions:
-* Once released, this model assumes a parolee will spend about `r percent(prob_of_shelter)` of his or her time, on average, in a shelter. This is based on data from the state of California, where "10% of the state’s parolees are homeless," according to [the Center for Supportive Housing](http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf).
-* Parolees will use DWS services at rates similar to the average childless male who utilizes these services.
-* To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 annually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
-* This model assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison, and that the probability of utilizing these services is not conditional on other variables.
-* DHS costs include some inpatient and outpatient care (e.g., methadone). We also assume that the average parolee will visit the ER two times per year, while free, at an average cost of `r dollar(round(ambulance + ER))` per trip.
-* This model uses the total average daily cost of prison, which is approximately $81 per prisoner. While some would consider the marginal cost more useful, we feel the total cost is defensible given these two considerations: 1. prisoners with COD likely use more services than average, 2. the State is considering building a new prison, so a significant reduction in the prison population could impact that decision. 
-
-
-
-
-
-##### Pagebreak
-
-# About the model
-
-## Description:
-[Note: this section is more technical. For the results, skip forward a couple pages]. 
-
-The process outlined below falls within a broad category called [agent-based modeling](https://en.wikipedia.org/wiki/Agent-based_model) (ABM), which wikipedia defines as "computational models for simulating the actions and interactions of autonomous agents with a view to assessing their effects on the system as a whole."
-
-1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.
-2. Repeat this simulation thousands of times to see how the results vary.  
-
-
-The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month. The conditional probability of continued freedom is given by:  
-
-$$P_i = \frac{f_i - r_i}{f_i}$$
-
-where *f* is the number of people free but at risk of recidivating in the *i*th interval, and *r* is the number who recidivated in the same period.  
-
 ```{r, echo=FALSE}
 # Load survival data: the single argument is for reducing recidivism to model some intervention
 load_survival_data <- function(recid_reduction_ovr_cntrl){
@@ -569,26 +370,6 @@ load_survival_data <- function(recid_reduction_ovr_cntrl){
     select(prob_recidivate, prob_did_not_recidivate)
 }
 ```
-
-
-When loaded with no treatment assumed, the first five rows of data look like this:
-
-```{r, echo=FALSE}
-survival_rates_for_printing <- load_survival_data(0) %>% 
-  mutate(month = seq(1:nrow(.))) %>% 
-  mutate(prob_recidivate = percent(prob_recidivate),
-         prob_did_not_recidivate = percent(prob_did_not_recidivate))
-
-kable(head(survival_rates_for_printing[,c(3,1,2)], 5), digits = 3)
-
-rm(survival_rates_for_printing)
-```
-
-These estimates show that in the first month, someone from the COD group has about an 8% chance of recidivating. But if he can make it 4 months, that drops to only 5% in month 5. Using these data, we are now ready to populate our model.
-
-
-
-##### Pagebreak
 
 ```{r single agent, echo=FALSE}
 sim_single_agent <- function(months) {
@@ -705,7 +486,6 @@ sim_single_agent <- function(months) {
 
 ```
 
-
 ```{r multiple, echo=FALSE}
 sim_multi_agents <- function(n_agents, n_months){
   
@@ -785,14 +565,268 @@ n_agents = 100
 n_months = 60
 ```
 
-## Assumptions:
-* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of `r comma(n_agents)` simulated agents. Shorter time frames with fewer simulations may lead to anomalous results.
- 
 
 ```{r, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
 single_agent_test <- sim_single_agent(months = n_months) 
 ```
+
+
+```{r, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
+multi_agent <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+```{r, echo=FALSE}
+# This is for getting the # who go back more than twice
+more_than_two <- multi_agent %>% 
+  filter(arrests > 2) %>% 
+  nrow()
+```
+
+```{r, echo=FALSE}
+recid_reduction_post <- .15
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post)
+multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+```
+
+
+```{r, echo=FALSE}
+to_combine_pre <- multi_agent %>% 
+  select(avg_prison_cost_per_yr) %>% 
+  mutate(Pre_or_Post = "Pre")
+
+combined_pre_po <- multi_agent_post %>% 
+  select(avg_prison_cost_per_yr) %>% 
+  mutate(Pre_or_Post = "Post") %>% 
+  rbind(to_combine_pre)
+  
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+![](dont_commit/logo.png)
+
+
+##### Pagebreak
+
+This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with with co-occurring mental health and substance use disorders (COD). 
+
+The potential benefits of reducing jail time for the COD population are numerous. The COD population recidivates at a much higher rate than the general population. Almost 75% return within three years of their release. In this report, we focus on the economic benefits of reducing recidivism among members of this group, paying particular attention to prison costs. 
+
+Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. We can safely assume that prisoners with COD cost more than the average prisoner. This is probably true of parolees with COD as well. 
+
+To understand these costs, we have created a model of recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
+
+
+### Summary
+By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
+
+There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
+
+
+
+
+##### Pagebreak
+
+# Recidivism Rates
+
+## Description:
+This is the estimated percent of parolees who will return to prison within a given time after release. 
+
+
+## Sources:
+The kaplan-meier curves come from the Bureau of Justice Statistics, which compiles [national trends](http://www.bjs.gov/index.cfm?ty=pbdetail&iid=4986) on recidivism. The Utah Department of Corrections also provided recidivism rates for the 2012 release cohort, which allowed for tracking of the COD population over three years. Numbers from the pre-JRI period suggest that Utah is similar to national trends.
+
+
+## Assumptions:
+[It is worth noting that we can test the sensitivity of the model to these or any other assumptions described in this document]
+
+* We assume that survival curves for the COD population will bend in similar ways to national trends
+* Conservatively, we estimate that the JRI will reduce recidivism among the COD population by `r percent(recid_reduction_JRI)`. Data do not yet exist for Utah's recidivism rates post-JRI, so this estimate is based on conversations with those familiar with the reforms.  
+
+
+## Statistics
+* Pre-JRI, approximately `r percent(round(sr_study_group$cumulative_percent[12], 2))` of the COD population re-offended within one year.
+* Approximately `r percent(round(sr_study_group$cumulative_percent[36], 2))` re-offended within three years.
+* If, as this model assumes, the JRI reduces recidivism by `r percent(recid_reduction_JRI)`, there will still be `r percent(round(sr_post_intervention$cumulative_percent[36], 2))` of the COD population who recidivate within three years.
+
+
+##### Pagebreak
+The following chart shows estimated survival curves from national averages, the COD population pre-JRI, and post-JRI with a `r percent(recid_reduction_JRI)` reduction in recidivism. The X-axis is time in months over a period of five years. The Y-axis is the cumulative percent who recidivate at least once. The chart shows that recidivism is more likely in the first year, and then tapers off over time. This suggests that if a program is effective at helping people early on, it will be more effective than if it aims to help people several months removed from their release.   
+
+```{r pressure, echo=FALSE}
+# plot the curves
+ggplot(all_together, aes(months)) + 
+  geom_line(aes(y = sr_post_intervention.cumulative_percent, colour = "COD Post-JRI")) + 
+  geom_line(aes(y = sr_study_group.cumulative_percent, colour = "COD Group")) +
+  geom_line(aes(y = sr_baseline.cumulative_percent, colour = "National Trend")) +
+  labs(title = "Time to Recidivism", y = "Percent Who Recidivate") + 
+  scale_y_continuous(labels=percent)
+
+# And clean things up
+rm(all_together, sr_post_intervention, sr_study_group, sr_baseline)
+```
+
+
+##### Pagebreak
+
+
+# Crime Types
+
+## Description:
+These data show the frequency of certain crime types among parolees. They differ from the survival curves in that they show not the time it takes to reoffend, but what type of crime is most likely to be involved in the event of a re-offense.  
+
+
+## Sources:
+Data on crime frequencies come from the Department of Corrections, which provided counts for the COD demographic. These data indicate that for the 2012 cohort, nearly 70% of prison returns were for a technical violation. This is slightly higher than for the general prison population, according to a report by the [CCJJ](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf). 
+
+Data on the courts and policing costs of various crimes come from a report by the CCJJ and faculty at the University of Utah titled [Utah Cost of Crime Report : Introduction to an Econometric Cost-Benefit Approach](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf).    
+
+
+## Assumptions:
+* The crime type frequencies for a re-offense will be similar to those from the original offense.
+* The Cost of Crime report did not include costs for a parole violation. This model assume those costs are similar to the costs of a property crime.  
+
+
+## Statistics
+* Property crimes are the most likely type of crime, at `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Property"], 2))` of all crimes committed while off parole. It is also the least expensive at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Property"] + prison_terms$police_cost[prison_terms$offense_type == "Property"]), 2))` (court and policing costs).
+* Murder is the least likely, at less than `r percent(round(prison_terms$frequency_of_crime[prison_terms$offense_type == "Murder"], 2))`, but the most expensive by far at `r dollar(round((prison_terms$court_cost[prison_terms$offense_type == "Murder"] + prison_terms$police_cost[prison_terms$offense_type == "Murder"]), 2))`
+* When on parole, the most likely reason to be sent back is for a technical violation. These account for about `r percent(round(prison_terms$frequency[prison_terms$offense_type == "Parole_Violation"], 2))` of recidivism occurrences. 
+
+The following table shows these frequencies and costs (for court and policing).
+
+```{r, echo=FALSE}
+
+frequenceis_to_print <- prison_terms %>% 
+  mutate(cost = dollar(police_cost + court_cost)) %>% 
+  select(offense_type, frequency, frequency_of_crime, cost) %>% 
+  filter(offense_type != "") %>% 
+  mutate("off parole" = percent(frequency_of_crime),
+         "on parole" = percent(frequency)) %>% 
+  select(-frequency, -frequency_of_crime)
+
+kable(head(frequenceis_to_print, 10), digits = 3)
+
+rm(frequenceis_to_print)
+```
+
+
+
+##### Pagebreak
+
+
+# Prison Time Served
+
+## Description:
+If convicted, these data show the length of time a parolee can expect to spend in prison, on average, for the various crime types. 
+
+
+## Sources:
+The [2014 Justice Reinvestment Report](http://justice.utah.gov/Documents/CCJJ/Reports/Justice_Reinvestment_Report_2014.pdf) and [ACLU Report](http://www.acluutah.org/criminal-justice/item/download/15_0cfccf37c91e9fb16be4ac2e89ca12f2) contain the mean time served for various offenses, which we scale down to reflect changes from the JRI (as described below). 
+
+
+## Assumptions:
+* We conservatively assume that the JRI will reduce the mean prison time served by about `r percent(1 - time_served_scale_JRI)` for all crime types. Data do not yet exist for Utah's prison sentences post-JRI, so this estimate is based on conversations with people familiar with the reforms. 
+* This model assumes that the average prison sentence for technical violations will go from 15 months to approximately `r parole_violation_MTS_JRI` months. This estimate is based on the new [sentencing guidelines](http://www.utah.gov/pmn/files/172049.pdf).
+* It also assumes that average parole sentence will go from three years to `r parole_length_JRI` months for those who exhibit good behavior, which is stipulated in the [earned-time credit program](http://corrections.utah.gov/index.php?option=com_content&view=category&id=31&Itemid=344). 
+
+
+## Statistics
+* Murder resulted in the longest average prison sentence at `r prison_terms$mean_time_served[prison_terms$offense_type == "Murder"]` months.
+* The second longest was for sex crimes: `r prison_terms$mean_time_served[prison_terms$offense_type == "Sex"]` months.
+
+Here is a table of the actual values and the estimated values for the post-JRI period.
+
+```{r, echo=FALSE}
+
+mts_to_print <- prison_terms %>%
+  filter(offense_type != "") %>% 
+  mutate("offense type" = offense_type, "mean time served" = mean_time_served,
+         "estimated MTS post-JRI" = mean_time_served_post_JRI) %>% 
+  select(-offense_type:-mean_time_served_post_JRI)  
+   
+
+kable(head(mts_to_print, 10), digits = 3)
+
+rm(mts_to_print)
+
+```
+
+
+
+
+##### Pagebreak
+
+# Costs
+
+## Description:
+These are assumptions, estimates, and past data about the direct taxpayer costs of caring for a parolee both in and out of prison.  
+
+
+## Sources:
+As described above, [Utah's Cost of Crime](http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf) report contains estimates of the taxpayer costs of crimes, from which we take the policing and court costs. The costs of prison, parole, and shelters come from two PDF reports given to the Center by the Department of Corrections: one that details the cost per day for prisons, and one for parole services, including costs for Community Correctional Centers (CCC). Aggregated DWS and DHS cost data were given to the Center by the respective agencies.      
+
+
+## Assumptions:
+* Once released, this model assumes a parolee will spend about `r percent(prob_of_shelter)` of his or her time, on average, in a shelter. This is based on data from the state of California, where "10% of the state’s parolees are homeless," according to [the Center for Supportive Housing](http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf).
+* Parolees will use DWS services at rates similar to the average childless male who utilizes these services.
+* To be conservative, this model estimates that the total DHS spending is $3,000 per parolee per year. (DHS spends about $3,000 annually per client on substance use treatment, and $3,000 per client on mental health services. Even though some of the COD population could be utilizing both types of service, there may also be some who utilize neither).
+* This model assume that DWS, DHS, shelter, parole, and other similar costs are only borne by the state when the parolee is out of prison, and that the probability of utilizing these services is not conditional on other variables.
+* DHS costs include some inpatient and outpatient care (e.g., methadone). We also assume that the average parolee will visit the ER two times per year, while free, at an average cost of `r dollar(round(ambulance + ER))` per trip.
+* This model uses the total average daily cost of prison, which is approximately $81 per prisoner. While some would consider the marginal cost more useful, we feel the total cost is defensible given these two considerations: 1. prisoners with COD likely use more services than average, 2. the State is considering building a new prison, so a significant reduction in the prison population could impact that decision. 
+
+
+
+
+
+##### Pagebreak
+
+# About the model
+
+## Description:
+[Note: this section is more technical. For the results, skip forward a couple pages]. 
+
+The process outlined below falls within a broad category called [agent-based modeling](https://en.wikipedia.org/wiki/Agent-based_model) (ABM), which wikipedia defines as "computational models for simulating the actions and interactions of autonomous agents with a view to assessing their effects on the system as a whole."
+
+1. Simulate a single agent for five years from the time he or she leaves prison. Each agent may return to prison immediately, or stay out of prison for the entire 60 months. The odds of these events are based on real data and are stochastic in the sense that they are not predetermined.
+2. Repeat this simulation thousands of times to see how the results vary.  
+
+
+The first step in this process is to turn data from the survival curves into an estimate of a parolee's odds of recidivating in a given month. The conditional probability of continued freedom is given by:  
+
+$$P_i = \frac{f_i - r_i}{f_i}$$
+
+where *f* is the number of people free but at risk of recidivating in the *i*th interval, and *r* is the number who recidivated in the same period.  
+
+
+When loaded with no treatment assumed, the first five rows of data look like this:
+
+```{r, echo=FALSE}
+survival_rates_for_printing <- load_survival_data(0) %>% 
+  mutate(month = seq(1:nrow(.))) %>% 
+  mutate(prob_recidivate = percent(prob_recidivate),
+         prob_did_not_recidivate = percent(prob_did_not_recidivate))
+
+kable(head(survival_rates_for_printing[,c(3,1,2)], 5), digits = 3)
+
+rm(survival_rates_for_printing)
+```
+
+These estimates show that in the first month, someone from the COD group has about an 8% chance of recidivating. But if he can make it 4 months, that drops to only 5% in month 5. Using these data, we are now ready to populate our model.
+
+
+
+##### Pagebreak
+
+
+## Assumptions:
+* It is advisable to look at average costs over the course of `r n_months / 12` years with a sample of `r comma(n_agents)` simulated agents. Shorter time frames with fewer simulations may lead to anomalous results.
+ 
 
 ### Single Agent 
 When run for a single person, the resulting data contain `r n_months` rows, each representing a month in the life of the simulated parolee. The columns track outcomes of the simulation and their associated costs: `r names(single_agent_test)`. 
@@ -881,18 +915,6 @@ A portion of these will always remain flat - meaning the person will stay out of
 
 # Results: No Intervention
 
-```{r, echo=FALSE}
-survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
-multi_agent <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
-```
-
-```{r, echo=FALSE}
-# This is for getting the # who go back more than twice
-more_than_two <- multi_agent %>% 
-  filter(arrests > 2) %>% 
-  nrow()
-```
-
 ## Description:
 These are the results of running an agent-based simulation `r comma(n_agents)` times with all of the assumptions listed above. 
 
@@ -940,12 +962,6 @@ The one area where the model is the most likely to capture the full costs is pri
 
 # Results: Post-Intervention
 
-```{r, echo=FALSE}
-recid_reduction_post <- .15
-survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post)
-multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
-```
-
 
 ## Description:
 These are the results of running the same model as above, but assuming a recidivism reduction of `r percent(recid_reduction_post)`. 
@@ -973,18 +989,6 @@ ggplot(multi_agent_post, aes(arrests)) +
 
 
 ##### Pagebreak
-
-```{r, echo=FALSE}
-to_combine_pre <- multi_agent %>% 
-  select(avg_prison_cost_per_yr) %>% 
-  mutate(Pre_or_Post = "Pre")
-
-combined_pre_po <- multi_agent_post %>% 
-  select(avg_prison_cost_per_yr) %>% 
-  mutate(Pre_or_Post = "Post") %>% 
-  rbind(to_combine_pre)
-  
-```
 
 
 # Results: Summary
