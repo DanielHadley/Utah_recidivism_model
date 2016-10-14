@@ -1,8 +1,9 @@
 ---
 title: "The Benefits of Reducing Recidivsm in Utah"
-output: 
-    word_document:
-      reference_docx: mystyles.docx
+output:
+  pdf_document: default
+  word_document:
+    reference_docx: mystyles.docx
 ---
 
 ```{r setup, include=FALSE}
@@ -312,10 +313,18 @@ prob_of_shelter <- .1
 prob_of_ER_visit <- .16  # two per year - your chance per month
 ambulance <- 1200
 ER <- 1200
-calc_combined_cost<-function(){
-  unif<-as.list(c(rgeom(58500,.0019),runif(1500,5000,35000)))
-  sample<-sample(unif,1)
-  return(as.numeric(sample))
+
+unif_Base<-c(rgeom(58500,.0019),runif(1500,4000,35000))
+unif_Low<-c(rgeom(58575,.0019),runif(1425,4000,33250))
+unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
+unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
+calc_combined_cost<-function(parole_cost_type){
+  switch (parole_cost_type,
+    base = return(sample(unif_Base,1)),
+    low = return(sample(unif_Low,1)),
+    med = return(sample(unif_Med,1)),
+    high= return(sample(unif_High,1))
+  )
 }
 
 ```
@@ -360,7 +369,7 @@ load_survival_data <- function(recid_reduction_ovr_cntrl){
 
 
 ```{r single agent function, echo=FALSE}
-sim_single_agent <- function(months) {
+sim_single_agent <- function(months,parole_cost_type) {
   
   # Define some factors
   levels.crimetype <- factor(prison_terms$offense_type)
@@ -434,7 +443,7 @@ sim_single_agent <- function(months) {
     m.total_parole_costs <- calc_total_app_costs(m.is_on_parole)
     
     #Combined cost(Emergency room & DWS+DHS & Shelters)
-    m.total_combined_costs<-calc_combined_cost()
+    m.total_combined_costs<-calc_combined_cost(parole_cost_type)
     
     # add month to the data frame
     df[month,] <- 
@@ -468,7 +477,7 @@ sim_single_agent <- function(months) {
 
 
 ```{r multi-agent function, echo=FALSE}
-sim_multi_agents <- function(n_agents, n_months){
+sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
   
   # set up the data frame
   df <- data.frame(prison_time=numeric(0),
@@ -488,7 +497,7 @@ sim_multi_agents <- function(n_agents, n_months){
   for (agent in 1:n_agents) {
     
     ### generate action for each person ###
-    single_agent <- sim_single_agent(n_months)
+    single_agent <- sim_single_agent(n_months,parole_cost_type)
     
     # Get total costs df
     total_costs_df <- single_agent %>% 
@@ -544,7 +553,7 @@ sim_multi_agents <- function(n_agents, n_months){
 
 
 ```{r model parameters, echo=FALSE}
-n_agents = 100
+n_agents = 6000
 n_months = 60
 ```
 
@@ -553,7 +562,7 @@ n_months = 60
 
 ```{r single-agent pre, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
-single_agent_test <- sim_single_agent(months = n_months) 
+single_agent_test <- sim_single_agent(months = n_months,"base") 
 ```
 
 
@@ -561,9 +570,23 @@ single_agent_test <- sim_single_agent(months = n_months)
 
 ```{r multi-agent pre, echo=FALSE}
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0)
-multi_agent <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+multi_agent <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"base")
 ```
 
+```{r multi-agent pre_low, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0.05)
+multi_agent_low <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"low")
+```
+
+```{r multi-agent pre_Med, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0.15)
+multi_agent_med <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"med")
+```
+
+```{r multi-agent pre_High, echo=FALSE}
+survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0.25)
+multi_agent_high <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"high")
+```
 
 
 
@@ -580,7 +603,7 @@ more_than_two <- multi_agent %>%
 ```{r multi-agent post, echo=FALSE}
 recid_reduction_post <- .15
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = recid_reduction_post)
-multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months)
+multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"base")
 ```
 
 
@@ -802,17 +825,40 @@ ggplot(multi_agent, aes(arrests)) +
   xlab("# of re-arrests during entire simulation")
 ```
 
-
-
 ##### Pagebreak
 The following histogram shows the average annual costs for the simulated COD population. The x-axis shows annual costs, starting at `r dollar(round(min(multi_agent$avg_total_cost_per_yr)))` and ending in the maximum, `r dollar(round(max(multi_agent$avg_total_cost_per_yr)))`. The y-axis shows the number of simulations that resulted in the average cost represented on the x-axis. The graph has two distinct "peaks." The first one appears to represent parolees who did not return to prison, or only went back briefly. The second group likely went back for the average amount of time, which for the entire `r n_months/12` year simulation was `r round(mean(multi_agent$prison_time))` months.   
 
 ```{r cost, echo=FALSE}
 # plot the hist
 ggplot(multi_agent, aes(avg_total_cost_per_yr)) + 
-  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 30) +
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
   labs(title = "Histogram of Annual Costs", y = "# of Simulations", x = "Average Total Cost Per Year") +
   scale_x_continuous(labels=dollar)
+```
+
+```{r cost low, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_low, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
+  labs(title = "Histogram of Annual Costs Low", y = "# of Simulations", x = "Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
+```
+
+```{r cost med, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_med, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
+  labs(title = "Histogram of Annual Costs Medium", y = "# of Simulations", x = "Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
+```
+
+```{r cost high, echo=FALSE}
+# plot the hist
+ggplot(multi_agent_high, aes(avg_total_cost_per_yr)) + 
+  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
+  labs(title = "Histogram of Annual Costs High", y = "# of Simulations", x = "Average Total Cost Per Year") +
+  scale_x_continuous(labels=dollar)
+
 ```
 
 
@@ -881,7 +927,7 @@ sensitivity_recid_reductions <- c(.05, .1, .15, .2, .25, .3, .35, .4)
 sensitivity_vector <- c()
 for (i in sensitivity_recid_reductions) {
   survival_rates <- load_survival_data(i)
-  multi_agent_post <- sim_multi_agents(n_agents = 10, n_months = 60)
+  multi_agent_post <- sim_multi_agents(n_agents = 10, n_months = 60,"base")
   m <- mean(multi_agent_post$avg_prison_cost_per_yr)
   sensitivity_vector <- append(sensitivity_vector, m)
 }
@@ -1021,7 +1067,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 
 plots <- list()  # new empty list
 for (i in 1:12) {
-  single_agent_test <- sim_single_agent(months = n_months)
+  single_agent_test <- sim_single_agent(months = n_months,"base")
   single_agent_test$month <- as.numeric(single_agent_test$month)
   p1 = ggplot(single_agent_test, aes(month, is_in_prison, group = 1)) + 
   geom_line() + labs(y = "", x = "")
