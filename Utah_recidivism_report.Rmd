@@ -861,6 +861,28 @@ ggplot(multi_agent_high, aes(avg_total_cost_per_yr)) +
 
 ```
 
+```{r cost table, echo=FALSE}
+# plot the hist
+table<-data_frame(c("Base","Low","Median","High"),
+                  c(dollar(mean(multi_agent$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_low$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_med$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_high$avg_total_cost_per_yr)))
+                  ,c(dollar(mean(multi_agent$median_total_cost_per_yr)),
+                     dollar(mean(multi_agent_low$median_total_cost_per_yr)),
+                    dollar(mean(multi_agent_med$median_total_cost_per_yr)),
+                    dollar(mean(multi_agent_high$median_total_cost_per_yr)))
+                  ,c(dollar(mean(multi_agent$total_costs)),
+                     dollar(mean(multi_agent_low$total_costs)),
+                    dollar(mean(multi_agent_med$total_costs)),
+                    dollar(mean(multi_agent_high$total_costs)))
+                  )
+colnames(table)<-c("Model","Average Cost per Year",
+                   "Median Cost per Year",
+                   "Average Total Cost")
+kable(head(table,10),digits=3,align = 'c')
+
+```
 
 ## Caveat:
 The true costs are almost certainly higher and more dispersed around the mean. By focusing on direct costs, being conservative, and using averages and standard probabilities (rather than conditional ones), this model aims to provide a defensible, if somewhat low, annual cost per parolee. 
