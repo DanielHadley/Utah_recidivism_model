@@ -1,9 +1,9 @@
 ---
 title: "The Benefits of Reducing Recidivsm in Utah"
 output:
-  pdf_document: default
   word_document:
     reference_docx: mystyles.docx
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -702,7 +702,8 @@ kable(head(table,10),digits=3,align = 'c')
 
 This table also shows how little time is spent in prison with an average of `r round(mean(multi_agent$prison_time)*30.5/12)` days in prison per year, supporting our higher out of prison cost. 
 
-These tables do not fully show the effect the super-utilizers have on cost. It is reasonable to assume that with super utilizers there will be a discernable gap between the average and mean cost per individual.  
+These tables do not fully show the effect the super-utilizers have on cost. It is reasonable to assume that with super utilizers there will be a discernable gap between the average and mean cost per individual because of the weight of their skew. 
+
 There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
 
 
