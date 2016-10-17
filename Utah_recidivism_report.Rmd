@@ -13,7 +13,7 @@ knitr::opts_chunk$set(cache=TRUE)
 set.seed(123)
 
 # Load the packages neeed and set working directory
-setwd("~/Github/Utah_recidivism_model/")
+#setwd("~/Github/Utah_recidivism_model/")
 library(tidyverse)
 library(printr)
 library(knitr)
@@ -640,9 +640,26 @@ Data from the Utah Department of Corrections demonstrate that the average prison
 
 To understand these costs, we have created a model of recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
 
+```{r cost table, echo=FALSE}
+# Create a table of low, mediumm, and high cost estimates. 
+table<-data_frame(c("Base","Low","Median","High"),
+                  c(dollar(mean(multi_agent$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_low$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_med$avg_total_cost_per_yr)),
+                    dollar(mean(multi_agent_high$avg_total_cost_per_yr)))
+                  ,c(dollar(mean(multi_agent$median_total_cost_per_yr)),
+                     dollar(mean(multi_agent_low$median_total_cost_per_yr)),
+                    dollar(mean(multi_agent_med$median_total_cost_per_yr)),
+                    dollar(mean(multi_agent_high$median_total_cost_per_yr)))
+                  )
+colnames(table)<-c("Model","Average Cost per Year",
+                   "Median Cost per Year")
+kable(head(table,10),digits=3,align = 'c')
+
+```
 
 ### Summary
-By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at $1,500 per parolee per year. 
+By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at `r dollar(mean(multi_agent$avg_total_cost_per_yr)-mean(multi_agent_med$avg_total_cost_per_yr))` per parolee per year. 
 
 There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
 
@@ -826,63 +843,25 @@ ggplot(multi_agent, aes(arrests)) +
 ```
 
 ##### Pagebreak
-The following histogram shows the average annual costs for the simulated COD population. The x-axis shows annual costs, starting at `r dollar(round(min(multi_agent$avg_total_cost_per_yr)))` and ending in the maximum, `r dollar(round(max(multi_agent$avg_total_cost_per_yr)))`. The y-axis shows the number of simulations that resulted in the average cost represented on the x-axis. The graph has two distinct "peaks." The first one appears to represent parolees who did not return to prison, or only went back briefly. The second group likely went back for the average amount of time, which for the entire `r n_months/12` year simulation was `r round(mean(multi_agent$prison_time))` months.   
-
+The following histogram shows the average annual costs for the simulated COD population along with three cost predictions. The x-axis shows annual costs, with the base simulation starting at `r dollar(round(min(multi_agent$avg_total_cost_per_yr)))` and ending in the maximum, `r dollar(round(max(multi_agent$avg_total_cost_per_yr)))`. The y-axis shows the number of simulations that resulted in the average cost represented on the x-axis. The graph has two distinct "peaks." The first one appears to represent parolees who did not return to prison, or only went back briefly. The second group likely went back for the average amount of time, which for the entire `r n_months/12` year simulation was `r round(mean(multi_agent$prison_time))` months. As our cost predictions rise in reduction percentage we see a shortening of the tail,an increased initial peak ,and an overall shift left of average cost. 
 ```{r cost, echo=FALSE}
 # plot the hist
-ggplot(multi_agent, aes(avg_total_cost_per_yr)) + 
-  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
+ggplot() + 
+  geom_histogram(data=multi_agent, aes(avg_total_cost_per_yr,fill="r",colour="r"), alpha=0.50, color = "white", bins = 50) +
+  geom_histogram(aes(avg_total_cost_per_yr,fill="b",colour="b"),data=multi_agent_low, 
+                 alpha=0.50, color = "white", bins = 50) +
+  geom_histogram(aes(avg_total_cost_per_yr,fill="g",colour="g"),data=multi_agent_med, 
+                 alpha=0.50, color = "white", bins = 50) +
+    geom_histogram(aes(avg_total_cost_per_yr,fill="o",colour="o"),data=multi_agent_high, 
+                 alpha=0.50, color = "white", bins = 50) +
   labs(title = "Histogram of Annual Costs", y = "# of Simulations", x = "Average Total Cost Per Year") +
-  scale_x_continuous(labels=dollar)
-```
-
-```{r cost low, echo=FALSE}
-# plot the hist
-ggplot(multi_agent_low, aes(avg_total_cost_per_yr)) + 
-  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
-  labs(title = "Histogram of Annual Costs Low", y = "# of Simulations", x = "Average Total Cost Per Year") +
-  scale_x_continuous(labels=dollar)
-```
-
-```{r cost med, echo=FALSE}
-# plot the hist
-ggplot(multi_agent_med, aes(avg_total_cost_per_yr)) + 
-  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
-  labs(title = "Histogram of Annual Costs Medium", y = "# of Simulations", x = "Average Total Cost Per Year") +
-  scale_x_continuous(labels=dollar)
-```
-
-```{r cost high, echo=FALSE}
-# plot the hist
-ggplot(multi_agent_high, aes(avg_total_cost_per_yr)) + 
-  geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 50) +
-  labs(title = "Histogram of Annual Costs High", y = "# of Simulations", x = "Average Total Cost Per Year") +
-  scale_x_continuous(labels=dollar)
+  scale_x_continuous(labels=dollar)+
+  scale_colour_manual(name="Cost Reduction", values=c("r" = "red", "b"="blue","g"="green","o"="orange"), labels=c("b"="blue values", "r"="red values")) +
+  scale_fill_manual(name="Cost Reduction", values=c("r" = "red", "b"="blue","g"="green","o"="orange"), labels=c("b"="Base", "r"="Low","g"="Medium","o"="High"))
 
 ```
 
-```{r cost table, echo=FALSE}
-# plot the hist
-table<-data_frame(c("Base","Low","Median","High"),
-                  c(dollar(mean(multi_agent$avg_total_cost_per_yr)),
-                    dollar(mean(multi_agent_low$avg_total_cost_per_yr)),
-                    dollar(mean(multi_agent_med$avg_total_cost_per_yr)),
-                    dollar(mean(multi_agent_high$avg_total_cost_per_yr)))
-                  ,c(dollar(mean(multi_agent$median_total_cost_per_yr)),
-                     dollar(mean(multi_agent_low$median_total_cost_per_yr)),
-                    dollar(mean(multi_agent_med$median_total_cost_per_yr)),
-                    dollar(mean(multi_agent_high$median_total_cost_per_yr)))
-                  ,c(dollar(mean(multi_agent$total_costs)),
-                     dollar(mean(multi_agent_low$total_costs)),
-                    dollar(mean(multi_agent_med$total_costs)),
-                    dollar(mean(multi_agent_high$total_costs)))
-                  )
-colnames(table)<-c("Model","Average Cost per Year",
-                   "Median Cost per Year",
-                   "Average Total Cost")
-kable(head(table,10),digits=3,align = 'c')
 
-```
 
 ## Caveat:
 The true costs are almost certainly higher and more dispersed around the mean. By focusing on direct costs, being conservative, and using averages and standard probabilities (rather than conditional ones), this model aims to provide a defensible, if somewhat low, annual cost per parolee. 
