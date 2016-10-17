@@ -856,8 +856,8 @@ ggplot() +
                  alpha=0.50, color = "white", bins = 50) +
   labs(title = "Histogram of Annual Costs", y = "# of Simulations", x = "Average Total Cost Per Year") +
   scale_x_continuous(labels=dollar)+
-  scale_colour_manual(name="Cost Reduction", values=c("r" = "red", "b"="blue","g"="green","o"="orange"), labels=c("b"="blue values", "r"="red values")) +
-  scale_fill_manual(name="Cost Reduction", values=c("r" = "red", "b"="blue","g"="green","o"="orange"), labels=c("b"="Base", "r"="Low","g"="Medium","o"="High"))
+  scale_colour_manual(name="Cost Reduction", values=c("r" = "#502365", "b"="#14c8b9","g"="#a3f379","o"="#f72909"), labels=c("r"="Base","b"="Low" ,"g"="Medium","o"="High")) +
+  scale_fill_manual(name="Cost Reduction", values=c("r" = "#502365", "b"="#14c8b9","g"="#a3f379","o"="#f72909"), labels=c("r"="Base","b"="Low" ,"g"="Medium","o"="High"))
 
 ```
 
