@@ -590,6 +590,7 @@ multi_agent_high <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"h
 
 
 
+
 ```{r more than two, echo=FALSE}
 # This is for getting the # who go back more than twice
 more_than_two <- multi_agent %>% 
@@ -634,17 +635,28 @@ combined_pre_po <- multi_agent_post %>%
 
 This report describes work done by staff at the [Sorenson Impact Center](http://eccles.utah.edu/sorenson-impact-center/) of the University of Utah to quantify the benefits of a program to reduce recidivism among parolees with with co-occurring mental health and substance use disorders (COD). 
 
-The potential benefits of reducing jail time for the COD population are numerous. The COD population recidivates at a much higher rate than the general population. Almost 75% return within three years of their release. In this report, we focus on the economic benefits of reducing recidivism among members of this group, paying particular attention to prison costs. 
+The potential benefits of reducing jail time for the COD population are numerous. The COD population recidivates at a much higher rate than the general population. Almost 75% return within three years of their release. In this report, we focus on the economic benefits of reducing recidivism among members of this group, paying particular attention to prison costs. Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. 
 
-Data from the Utah Department of Corrections demonstrate that the average prisoner costs the State $81.34 per day, or approximately $30,000 per year. We can safely assume that prisoners with COD cost more than the average prisoner. This is probably true of parolees with COD as well. 
-
-To understand these costs, we have created a model of recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
+To understand these costs, we analyzed recidivism, crime, parole, and taxpayer-funded social services. We rely on data from the Bureau of Justice Statistics, University of Utah, and several divisions of Utah state government, including the Departments of Corrections, Human Services, and the Commission on Criminal and Juvenile Justice.  
 
 
 
 
 ### Summary
-By reducing recidivism among the COD population by 15%, the State can expect savings in prison expenditures between $1,500 and $2,500 per parolee per year. These savings would come from direct reductions in prison time for the average parolee. By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the potential savings at `r dollar(round(mean(multi_agent$avg_other_cost_per_yr)-mean(multi_agent_med$avg_other_cost_per_yr)))` per parolee per year. 
+```{r summary, echo=FALSE}
+prison_savings <- mean(multi_agent$avg_prison_cost_per_yr) - mean(multi_agent_med$avg_prison_cost_per_yr)
+
+out_of_prison_savings <- mean(multi_agent$avg_other_cost_per_yr) - mean(multi_agent_med$avg_other_cost_per_yr)
+```
+
+
+To estimate taxpayer savings from the proposed program, we have created three different models of the potential impacts: low, medium, and high, with recidivism reductions of 5%, 15%, and 25%, respectively. The results of each of these is evaluated against an estimated baseline. 
+
+By reducing recidivism among the COD population by 15% (the "medium" scenario), this model estimates that the State can expect gross savings in prison expenditures of approximately `r dollar(round(prison_savings))` per participant per year. These savings would come from direct reductions in prison time for the average participant. 
+
+By providing a higher level of care for the COD population, the State can also expect to see ancillary benefits in the form of reduced crime, shelter days, and outpatient stays, for example. These are more difficult to quantify, but we conservatively estimate the average savings at `r dollar(round(out_of_prison_savings))`, for total gross savings of **`r dollar(round(prison_savings + out_of_prison_savings))`** per participant per year.  
+
+The table below shows the results from each of the three models:
 
 
 ```{r cost table, echo=FALSE}
@@ -673,22 +685,25 @@ kable(head(table,10),digits=4,align = 'c')
 
 ```
 
-This table above shows that a parolee will end up accruing over twice the cost as he would in prison. This can be explained by the amount of time spent in prison compared to the time spend on parole. In the following table it shows that with increasing recidvism reductions how the average months in prison decreases. 
+
+##### Pagebreak 
+
+The table above shows the estimated taxpayer savings from the three scenarios. The following table shows the potential benefits of the program for the participants themselves. Even a small reduction in recidivism will lead to significantly less prison time for the average parolee.    
 
 ```{r prison time, echo=FALSE}
 # Create a table of low, mediumm, and high cost estimates. 
 table<-data_frame(c("Base","Low","Medium","High"),
  c("0%","5%","15%","25%") ,               
                   
-c(round(mean(multi_agent$prison_time*30.5/12)),
-                    round(mean(multi_agent_low$prison_time*30.5/12)),
-                    round(mean(multi_agent_med$prison_time*30.5/12)),
-                    round(mean(multi_agent_high$prison_time*30.5/12))),
+c(round(mean(multi_agent$avg_prison_time_per_yr * 30.5)),
+                    round(mean(multi_agent_low$avg_prison_time_per_yr * 30.5)),
+                    round(mean(multi_agent_med$avg_prison_time_per_yr * 30.5)),
+                    round(mean(multi_agent_high$avg_prison_time_per_yr * 30.5))),
 
-c(round(median(multi_agent$prison_time*30.5/12)),
-                    round(median(multi_agent_low$prison_time*30.5/12)),
-                    round(median(multi_agent_med$prison_time*30.5/12)),
-                    round(median(multi_agent_high$prison_time*30.5/12)))
+c(round(median(multi_agent$avg_prison_time_per_yr * 30.5)),
+                    round(median(multi_agent_low$avg_prison_time_per_yr * 30.5)),
+                    round(median(multi_agent_med$avg_prison_time_per_yr * 30.5)),
+                    round(median(multi_agent_high$avg_prison_time_per_yr * 30.5)))
 )
 
 colnames(table)<-c("Model",
@@ -700,9 +715,6 @@ kable(head(table,10),digits=3,align = 'c')
 
 ```
 
-This table also shows how little time is spent in prison with an average of `r round(mean(multi_agent$prison_time)*30.5/12)` days in prison per year, supporting our higher out of prison cost. 
-
-These tables do not fully show the effect the super-utilizers have on cost. It is reasonable to assume that with super utilizers there will be a discernable gap between the average and mean cost per individual because of the weight of their skew. 
 
 There are several other indirect benefits, which we do not explore in this report, e.g., reductions in victim costs, or improvements in job prospects for the COD group. We hope that a pilot program will help to better define the potential costs and benefits of providing intense support to this population. 
 
@@ -975,7 +987,6 @@ ggplot(sensitivity_df, aes(x = sensitivity_recid_reductions, y = sensitivity_vec
 # Appendix : About the model
 
 ## Description:
-[Note: this section is more technical. For the results, skip forward a couple pages]. 
 
 The process outlined below falls within a broad category called [agent-based modeling](https://en.wikipedia.org/wiki/Agent-based_model) (ABM), which wikipedia defines as "computational models for simulating the actions and interactions of autonomous agents with a view to assessing their effects on the system as a whole."
 
