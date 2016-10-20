@@ -18,6 +18,7 @@ library(tidyverse)
 library(printr)
 library(knitr)
 library(scales)
+library(VGAM) #Pareto distribution
 
 # Notice that I have a reference doc, mystyles. I used this to create a page break after H5 tags, per this doc: 
 # scriptsandstatistics.wordpress.com/2015/12/18/rmarkdown-how-to-inserts-page-breaks-in-a-ms-word-document/
@@ -263,11 +264,7 @@ calc_total_policing_costs <- function(m.rearrested_or_not, m.crime_type){
 }
 
 
-# When they are on parole, most will not go to a homeless shelter, but rather a CCC
-# The cost to operate those are in the CPD data from AP&P. 
-# There are a lot of possibilities for calculating the costs when they are off parole. Yvette sent data on Palmer Court and other shelters. Julia sent some data on the cost to operate and number of folks in halfway houses. There is a huge variety in costs. I think Yvette's estimate is a good place to start, which is 10.10. 
-
-
+#### Parole Costs ####
 # Adult parole costs (this group will not get probation)
 # This data comes from the cost per day pdf given to me
 calc_total_app_costs <- function(m.is_on_parole){
@@ -284,24 +281,15 @@ calc_total_app_costs <- function(m.is_on_parole){
   
 }
 
-#Represents the combined costs of DHS,DWS,Shelters, And Er Visits. 
-# an average of 812 was calculated using the individual probabilities and #costs. This was inflated to 1000 for the model
-#this creates a geometric distribution with an extremely long tail for super utilizers
 
-# DWS & DHS
-# average costs for DWS - food stamps, abd, WIOA, etc - are 75$ for adult males in the program
-# It's probably safe to assume that the average COD parolee uses that
-# DHS spends an average of $3000 per client on Substance use and $3000 per client on Mental Health, including inpatient, outpatient, crisis care, etc.
-# Probably safe to assume there is some overlap here, but not total overlap. Conservatively, we will say $3000 total per parolee / yr, and hope that will make up for the fact that some probably do not use it at all.
-# Emergency room
-# average 2 visits per year, while out of prison, seems reasonable
-# ambulance costs: http://www.deseretnews.com/article/705273784/Many-Utahns-refuse-to-ride-in-ambulance.html?pg=all
-# Emergency room : http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
+### Other out-of-prison costs
+#Represents the combined costs of DHS,DWS,Shelters, And Er Visits.
+## First we will get averages for everything, then build a distribution
 
+# Shelter
 # When they are on parole, most will not go to a homeless shelter, but rather a CCC
 # The cost to operate those are in the CPD data from AP&P. 
-# There are a lot of possibilities for calculating the costs when they are off parole. Yvette sent data on Palmer Court and other shelters. Julia sent some data on the cost to operate and number of folks in halfway houses. There is a huge variety in costs. I think Yvette's estimate is a good place to start, which is 10.10. 
-
+# There are a lot of possibilities for calculating the costs when they are off parole. Yvette sent data on Palmer Court and other shelters. Julia sent some data on the cost to operate and number of folks in halfway houses. There is a huge variety in costs. I think Yvette's estimate is a good place to start, which is 10.10 /night. 
 # IF out of prison, in a shelter???
 # Not sure how to think of this.
 # Low end estimate: 386 out of 17,039 on parole or probation are in CCCs (2.2%)
@@ -310,11 +298,35 @@ calc_total_app_costs <- function(m.is_on_parole){
 # http://www.urban.org/sites/default/files/alfresco/publication-pdfs/412504-Frequent-Users-of-Jail-and-Shelter-Systems-in-the-District-of-Columbia-An-Overview-of-the-Potential-for-Supportive-Housing.PDF
 # http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf
 prob_of_shelter <- .1
-prob_of_ER_visit <- .16  # two per year - your chance per month
+monthly_shelter_cost <- 10 * prob_of_shelter * 30.5
+
+# DWS & DHS
+# average costs for DWS - food stamps, abd, WIOA, etc - are 75$ for adult males in the program
+# It's probably safe to assume that the average COD parolee uses that
+# DHS spends an average of $3000 per client on Substance use and $3000 per client on Mental Health, including inpatient, outpatient, crisis care, etc.
+# Probably safe to assume there is some overlap here, but not total overlap. Conservatively, we will say $3000 total per parolee / yr, and hope that will make up for the fact that some probably do not use it at all.
+monthly_DWS_DHS_costs <- 3000 / 12
+
+# Emergency room
+# average 2 visits per year, while out of prison, seems reasonable
+# ambulance costs: http://www.deseretnews.com/article/705273784/Many-Utahns-refuse-to-ride-in-ambulance.html?pg=all
+# Emergency room : http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
+prob_of_ER_visit <- 2 / 12  # two per year - your chance per month
 ambulance <- 1200
 ER <- 1200
+monthly_ER_cost <- prob_of_ER_visit * (ambulance + ER)
 
-unif_Base<-c(rgeom(58500,.0019),runif(1500,4000,35000))
+# Average
+monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_DHS_costs + monthly_shelter_cost 
+
+
+#### This ultimately defines the costs for those out of prison (minus parole costs)
+# We did not like that everything eas averaged for this group
+# So we came up with a distribution based on the monthly average + imagined outliers
+# These outliers are the super-utilizers, rare but important to count
+# unif_Base<-c(rgeom(58500,.0019),runif(1500,4000,35000))
+# unif_Base <- rexp(6000, .0012)
+unif_Base <- rtruncpareto(6000, 50, 25000, .6)
 unif_Low<-c(rgeom(58575,.0019),runif(1425,4000,33250))
 unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
 unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
@@ -587,6 +599,25 @@ multi_agent_med <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"me
 survival_rates <- load_survival_data(recid_reduction_ovr_cntrl = 0.25)
 multi_agent_high <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"high")
 ```
+
+
+
+
+```{r analysis of pre, echo=FALSE}
+# Give some analysis to the distribution of spending on the pre category
+
+multi_agent$cost_quantile <- rank(multi_agent$avg_total_cost_per_yr) / nrow(multi_agent)
+
+base_top_fifteen_percent <- multi_agent %>% 
+  filter(cost_quantile >= .85)
+
+base_middle_seventy <- multi_agent %>% 
+  filter(cost_quantile < .85 & cost_quantile > .15)
+
+base_bottom_fifteen <- multi_agent %>% 
+  filter(cost_quantile <= .15)
+```
+
 
 
 
