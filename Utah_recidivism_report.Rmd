@@ -1,9 +1,9 @@
 ---
 title: "The Benefits of Reducing Recidivsm in Utah"
 output:
+  pdf_document: default
   word_document:
     reference_docx: mystyles.docx
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -264,7 +264,7 @@ calc_total_policing_costs <- function(m.rearrested_or_not, m.crime_type){
 }
 
 
-#### Parole Costs ####
+### Parole Costs ###
 # Adult parole costs (this group will not get probation)
 # This data comes from the cost per day pdf given to me
 calc_total_app_costs <- function(m.is_on_parole){
@@ -283,7 +283,7 @@ calc_total_app_costs <- function(m.is_on_parole){
 
 
 ### Other out-of-prison costs
-#Represents the combined costs of DHS,DWS,Shelters, And Er Visits.
+#Represents the combined costs of DHS, DWS, Shelters, And Er Visits.
 ## First we will get averages for everything, then build a distribution
 
 # Shelter
@@ -300,12 +300,18 @@ calc_total_app_costs <- function(m.is_on_parole){
 prob_of_shelter <- .1
 monthly_shelter_cost <- 10 * prob_of_shelter * 30.5
 
-# DWS & DHS
+# DWS
 # average costs for DWS - food stamps, abd, WIOA, etc - are 75$ for adult males in the program
 # It's probably safe to assume that the average COD parolee uses that
-# DHS spends an average of $3000 per client on Substance use and $3000 per client on Mental Health, including inpatient, outpatient, crisis care, etc.
-# Probably safe to assume there is some overlap here, but not total overlap. Conservatively, we will say $3000 total per parolee / yr, and hope that will make up for the fact that some probably do not use it at all.
-monthly_DWS_DHS_costs <- 3000 / 12
+monthly_DWS_cost <- 75
+
+# DHS
+# DHS spends an average of $3000 per client on Substance use and $3000 per client on Mental Health, including inpatient, outpatient, crisis care, etc *for clients using those services*
+# Julie and Brenda provided data on 197 parolees checked against the DHS database
+# I found that approximately 33% used DHS services within one year of release, at an average rate of $1,400 (per year, I believe, although the data are not crystal clear)
+# The average had a huge right tail, with a max payment of around $80k, hence the pareto distribution below
+# We will adjust up slightly in case of missingness in the client match
+monthly_DHS_cost <- 1500 / 12
 
 # Emergency room
 # average 2 visits per year, while out of prison, seems reasonable
@@ -316,20 +322,25 @@ ambulance <- 1200
 ER <- 1200
 monthly_ER_cost <- prob_of_ER_visit * (ambulance + ER)
 
-# Average
-monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_DHS_costs + monthly_shelter_cost 
+# Average out of prison
+monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_cost + monthly_shelter_cost + monthly_DWS_cost + monthly_DHS_cost 
 
 
 #### This ultimately defines the costs for those out of prison (minus parole costs)
 # We did not like that everything eas averaged for this group
-# So we came up with a distribution based on the monthly average + imagined outliers
+# So we came up with a distribution based on the monthly average + estimated outliers
 # These outliers are the super-utilizers, rare but important to count
+# Old ones:
 # unif_Base<-c(rgeom(58500,.0019),runif(1500,4000,35000))
 # unif_Base <- rexp(6000, .0012)
-unif_Base <- rtruncpareto(6000, 50, 25000, .6)
-unif_Low<-c(rgeom(58575,.0019),runif(1425,4000,33250))
-unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
-unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
+# unif_Low<-c(rgeom(58575,.0019),runif(1425,4000,33250))
+# unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
+# unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
+# New ones:
+unif_Base <- rtruncpareto(n = 6000, lower = 25, upper = 12000, shape = .36)
+unif_Low <- rtruncpareto(n = 6000, lower = 25, upper = 11000, shape = .38)
+unif_Med <- rtruncpareto(n = 6000, lower = 25, upper = 10000, shape = .41)
+unif_High <- rtruncpareto(n = 6000, lower = 25, upper = 8000, shape = .44)
 calc_combined_cost<-function(parole_cost_type){
   switch (parole_cost_type,
     base = return(sample(unif_Base,1)),
@@ -404,6 +415,9 @@ sim_single_agent <- function(months,parole_cost_type) {
                    total_parole_costs=numeric(0)
                    )
   
+  #Combined cost(Emergency room & DWS+DHS & Shelters)
+  m.total_combined_costs<-calc_combined_cost(parole_cost_type)
+  
   # loop through each month and see what happens			
   for (month in 1:months) {
     
@@ -453,9 +467,6 @@ sim_single_agent <- function(months,parole_cost_type) {
     
     # Parole
     m.total_parole_costs <- calc_total_app_costs(m.is_on_parole)
-    
-    #Combined cost(Emergency room & DWS+DHS & Shelters)
-    m.total_combined_costs<-calc_combined_cost(parole_cost_type)
     
     # add month to the data frame
     df[month,] <- 
@@ -744,6 +755,32 @@ colnames(table)<-c("Model",
 kable(head(table,10),digits=3,align = 'c')
 
 
+#summary(multi_agent$avg_total_cost_per_yr)
+#summary(multi_agent_low$avg_total_cost_per_yr)
+#summary(multi_agent_med$avg_total_cost_per_yr)
+#summary(multi_agent_high$avg_total_cost_per_yr)
+
+ ggplot(multi_agent, aes(avg_total_cost_per_yr)) + 
+ geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
+    labs(title = "Histogram of Annual Costs Base", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
+  ggplot(multi_agent_low, aes(avg_total_cost_per_yr)) + 
+ geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
+    labs(title = "Histogram of Annual Costs Low", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
+  
+   ggplot(multi_agent_med, aes(avg_total_cost_per_yr)) + 
+ geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
+    labs(title = "Histogram of Annual Costs Med", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
+   
+    ggplot(multi_agent_high, aes(avg_total_cost_per_yr)) + 
+ geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
+    labs(title = "Histogram of Annual Costs High", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
+    
+    summary(multi_agent$avg_total_cost_per_yr)
+    summary(multi_agent_low$avg_total_cost_per_yr)
+    summary(multi_agent_med$avg_total_cost_per_yr)
+    summary(multi_agent_high$avg_total_cost_per_yr)
+    
+    
 ```
 
 
