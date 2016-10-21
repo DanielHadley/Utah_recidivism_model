@@ -754,33 +754,6 @@ colnames(table)<-c("Model",
                    "Median Days in Prison per Year")
 kable(head(table,10),digits=3,align = 'c')
 
-
-#summary(multi_agent$avg_total_cost_per_yr)
-#summary(multi_agent_low$avg_total_cost_per_yr)
-#summary(multi_agent_med$avg_total_cost_per_yr)
-#summary(multi_agent_high$avg_total_cost_per_yr)
-
- ggplot(multi_agent, aes(avg_total_cost_per_yr)) + 
- geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
-    labs(title = "Histogram of Annual Costs Base", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
-  ggplot(multi_agent_low, aes(avg_total_cost_per_yr)) + 
- geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
-    labs(title = "Histogram of Annual Costs Low", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
-  
-   ggplot(multi_agent_med, aes(avg_total_cost_per_yr)) + 
- geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
-    labs(title = "Histogram of Annual Costs Med", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
-   
-    ggplot(multi_agent_high, aes(avg_total_cost_per_yr)) + 
- geom_histogram(fill="#c0392b", alpha=0.75, color = "white", bins = 100) +
-    labs(title = "Histogram of Annual Costs High", y = "# of Simulations", x = "Average Total Cost Per Year") +scale_x_continuous(labels=dollar)
-    
-    summary(multi_agent$avg_total_cost_per_yr)
-    summary(multi_agent_low$avg_total_cost_per_yr)
-    summary(multi_agent_med$avg_total_cost_per_yr)
-    summary(multi_agent_high$avg_total_cost_per_yr)
-    
-    
 ```
 
 
