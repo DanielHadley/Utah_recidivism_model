@@ -514,7 +514,9 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
                    total_costs=numeric(0),
                    avg_total_cost_per_yr=numeric(0),
                    median_total_cost_per_yr=numeric(0),
-                   avg_other_cost_per_yr=numeric(0))
+                   avg_other_cost_per_yr=numeric(0),
+                   avg_combined_cost_per_yr=numeric(0),
+                   avg_parole_cost_per_yr=numeric(0))
   
   # loop through each month and see what happens			
   for (agent in 1:n_agents) {
@@ -539,7 +541,9 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
       group_by(year) %>% 
       summarise(total_prison_costs = sum(as.numeric(total_prison_costs)),
                 total_costs = sum(as.numeric(total_costs)),
-                total_prison_time = sum(as.numeric(is_in_prison))) %>% 
+                total_prison_time = sum(as.numeric(is_in_prison)),
+                total_combined_costs=sum(as.numeric(total_combined_costs)),
+                total_parole_costs=sum(as.numeric(total_parole_costs))) %>% 
       mutate(total_other_costs = total_costs - total_prison_costs)
     
     # Sum things that happend to the agent
@@ -555,13 +559,15 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
     a.avg_total_cost_per_yr <- mean(by_year$total_costs)
     a.median_total_cost_per_yr <- median(by_year$total_costs)
     a.avg_other_cost_per_yr <- mean(by_year$total_other_costs)
+    a.avg_combined_cost_per_yr<-mean(by_year$total_combined_costs)
+    a.avg_parole_cost_per_yr<-mean(by_year$total_parole_costs)
     
     # add month to the data frame
     df[agent,] <- 
       c(a.prison_time, a.avg_prison_time_per_yr, a.months_free, a.total_prison_costs, 
         a.avg_prison_cost_per_yr, a.median_prison_cost_per_yr, a.prison_cost_yr_one,
         a.arrests, a.total_costs, a.avg_total_cost_per_yr, a.median_total_cost_per_yr,
-        a.avg_other_cost_per_yr)
+        a.avg_other_cost_per_yr,a.avg_combined_cost_per_yr,a.avg_parole_cost_per_yr)
     
   }
   
@@ -727,6 +733,28 @@ kable(head(table,10),digits=4,align = 'c')
 
 ```
 
+Out of Prison Costs can be broken down into the cost of parole, extraneous costs while being on parole, and costs associated with being sent to prison such as policing and court costs. The cost of putting someone on parole is on average `r dollar(round(mean(multi_agent$avg_parole_cost_per_yr)))` per person per year. The policing and court costs only represent about `r round(((mean(multi_agent$avg_other_cost_per_yr)
+-mean(multi_agent$avg_combined_cost_per_yr)-mean(multi_agent$avg_parole_cost_per_yr))/mean(multi_agent$avg_other_cost_per_yr))*100)` % of Out of Prison costs. So these two categories only represent a cumulative 
+`r round(((mean(multi_agent$avg_other_cost_per_yr)
+-mean(multi_agent$avg_combined_cost_per_yr))/mean(multi_agent$avg_other_cost_per_yr))*100)`% of Out of Prison costs and do not vary very much as we reduce cost and recidivism.The largest potential to reduce cost is in the second category. Costs not associated with actually being put on parole such as medical care and shelter visits represent the majority of cost at 
+`r dollar(round(mean(multi_agent$avg_combined_cost_per_yr)))` out of
+`r dollar(round(mean(multi_agent$avg_other_cost_per_yr)))` per person per year, but also have the largest deviation as some parolees will have fairly low costs and a small few will be super utilizers. Removal of a few outliers in this category can greatly reduce the average out of prison cost.
+The following table shows how each recidivism reduction model affects these particular costs. When compared to the previous table these extraneous costs represent the vast majority of the reduction of cost. 
+
+```{r parole cost table, echo=FALSE}
+# Create a table of low, mediumm, and high cost estimates. 
+table<-data_frame(c("Base","Low","Medium","High"),
+                 
+                  
+c(dollar(round(mean(multi_agent$avg_combined_cost_per_yr))),
+                    dollar(round(mean(multi_agent_low$avg_combined_cost_per_yr))),
+                    dollar(round(mean(multi_agent_med$avg_combined_cost_per_yr))),
+                    dollar(round(mean(multi_agent_high$avg_combined_cost_per_yr))))  
+ )
+colnames(table)<-c("Model","Extraneous Costs on Parole")
+kable(head(table,10),digits=4,align = 'c')
+
+```
 
 ##### Pagebreak 
 
