@@ -1,9 +1,9 @@
 ---
 title: "The Benefits of Reducing Recidivsm in Utah"
 output:
-  pdf_document: default
   word_document:
     reference_docx: mystyles.docx
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +13,7 @@ knitr::opts_chunk$set(cache=TRUE)
 set.seed(123)
 
 # Load the packages neeed and set working directory
-#setwd("~/Github/Utah_recidivism_model/")
+setwd("~/Github/Utah_recidivism_model/")
 library(tidyverse)
 library(printr)
 library(knitr)
@@ -620,13 +620,16 @@ multi_agent_high <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"h
 
 
 
-```{r analysis of pre, echo=FALSE}
+```{r analysis of pre, echo=FALSE, include=FALSE}
 # Give some analysis to the distribution of spending on the pre category
+
+summary(multi_agent)
 
 multi_agent$cost_quantile <- rank(multi_agent$avg_total_cost_per_yr) / nrow(multi_agent)
 
 base_top_fifteen_percent <- multi_agent %>% 
   filter(cost_quantile >= .85)
+summary(base_top_fifteen_percent$avg_total_cost_per_yr)
 
 base_middle_seventy <- multi_agent %>% 
   filter(cost_quantile < .85 & cost_quantile > .15)
