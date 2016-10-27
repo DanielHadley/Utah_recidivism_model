@@ -25,6 +25,48 @@ library(VGAM) #Pareto distribution
 ```
 
 
+```{r lit review, echo=FALSE}
+# # literature review
+# 
+# http://archive.vera.org/sites/default/files/resources/downloads/marginal-costs-guide.pdf
+# 
+# http://www.criminaljustice.ny.gov/crimnet/ojsa/resultsfirst/rf-technical_report_cba1_oct2013.pdf
+# 
+# http://www.policyinnovationlab.org/wp-content/uploads/2016/06/Missoula-County-Montana-Final-PFS-Report.pdf
+# 
+# http://nij.gov/journals/272/pages/cost-benefit.aspx
+# 
+# https://www.jstor.org/stable/29766578?seq=19#page_scan_tab_contents
+# 
+# https://www.vera.org/publications/the-price-of-prisons-what-incarceration-costs-taxpayers
+# 
+# http://www.urban.org/sites/default/files/alfresco/publication-pdfs/412504-Frequent-Users-of-Jail-and-Shelter-Systems-in-the-District-of-Columbia-An-Overview-of-the-Potential-for-Supportive-Housing.PDF
+# 
+# http://www.endhomelessness.org/page/-/files/1101_file_Cho_Presentation.pdf
+# 
+# https://works.bepress.com/dennis_culhane/4/
+# 
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3840153/
+#   
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1497852/
+# 
+# http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf
+# 
+# http://bjs.gov/content/pub/pdf/tssp.pdf
+# 
+# http://scholarlycommons.law.northwestern.edu/cgi/viewcontent.cgi?article=6051&context=jclc
+# 
+# http://www.utah.gov/pmn/files/172049.pdf
+#  
+# http://law.justia.com/codes/utah/2006/title76/76_03009.html
+# 
+# http://corrections.utah.gov/index.php?option=com_content&view=category&id=31&Itemid=344
+# 
+#  http://www.deseretnews.com/article/705273784/Many-Utahns-refuse-to-ride-in-ambulance.html?pg=all
+# 
+#  http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
+```
+
 
 
 ```{r plot rates, echo=FALSE}
