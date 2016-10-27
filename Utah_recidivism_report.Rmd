@@ -364,8 +364,17 @@ ambulance <- 1200
 ER <- 1200
 monthly_ER_cost <- prob_of_ER_visit * (ambulance + ER)
 
+# Finally, to be careful we will add in health care costs that are not related to ER visits or covered by the DHS costs.
+# According to this report, prisoners in Utah cost about $4,400 per capita on health spending *while in prison*
+# http://www.pewtrusts.org/~/media/assets/2014/07/stateprisonhealthcarespendingreport.pdf
+# This would probably include some of the costs above (ER and DHS-type services)
+# Some are bound to use private insurance and medicaid after, reducing per-capita costs
+# But the COD group is also probably above average in terms of its use
+# Considering all of this, I will add the following in non-duplicated "other" health costs
+monthly_other_health_costs <- 2000 / 12
+
 # Average out of prison
-monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_cost + monthly_shelter_cost + monthly_DWS_cost + monthly_DHS_cost 
+monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_cost + monthly_shelter_cost + monthly_DWS_cost + monthly_DHS_cost + monthly_other_health_costs
 
 
 #### This ultimately defines the costs for those out of prison (minus parole costs)
@@ -379,7 +388,7 @@ monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_cost + monthly_shelter
 # unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
 # unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
 # New ones:
-unif_Base <- rtruncpareto(n = 6000, lower = 25, upper = 12000, shape = .36)
+unif_Base <- rtruncpareto(n = 6000, lower = 25, upper = 12000, shape = .34)
 unif_Low <- rtruncpareto(n = 6000, lower = 25, upper = 11000, shape = .38)
 unif_Med <- rtruncpareto(n = 6000, lower = 25, upper = 10000, shape = .41)
 unif_High <- rtruncpareto(n = 6000, lower = 25, upper = 8000, shape = .44)
