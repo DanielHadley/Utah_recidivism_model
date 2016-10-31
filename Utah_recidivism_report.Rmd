@@ -830,7 +830,7 @@ c(dollar(round(mean(multi_agent$avg_combined_cost_per_yr))),
                     dollar(round(mean(multi_agent_med$avg_combined_cost_per_yr))),
                     dollar(round(mean(multi_agent_high$avg_combined_cost_per_yr))))  
  )
-colnames(table)<-c("Model","Extraneous Costs on Parole")
+colnames(table)<-c("Model","Non Law Enforcement Costs")
 kable(head(table,10),digits=4,align = 'c')
 
 ```
