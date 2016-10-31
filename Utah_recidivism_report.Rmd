@@ -25,6 +25,8 @@ library(VGAM) #Pareto distribution
 ```
 
 
+
+
 ```{r lit review, echo=FALSE}
 # # literature review
 # 
@@ -66,6 +68,7 @@ library(VGAM) #Pareto distribution
 # 
 #  http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
 ```
+
 
 
 
@@ -381,24 +384,25 @@ monthly_average_OUP_cost <- monthly_ER_cost + monthly_DWS_cost + monthly_shelter
 # We did not like that everything eas averaged for this group
 # So we came up with a distribution based on the monthly average + estimated outliers
 # These outliers are the super-utilizers, rare but important to count
-# Old ones:
-# unif_Base<-c(rgeom(58500,.0019),runif(1500,4000,35000))
-# unif_Base <- rexp(6000, .0012)
-# unif_Low<-c(rgeom(58575,.0019),runif(1425,4000,33250))
-# unif_Med<-c(rgeom(57225,.002),runif(1275,4000,29750))
-# unif_High<-c(rgeom(58875,.0021),runif(1125,4000,26250))
-# New ones:
 unif_Base <- rtruncpareto(n = 6000, lower = 25, upper = 12000, shape = .34)
 unif_Low <- rtruncpareto(n = 6000, lower = 25, upper = 11000, shape = .38)
 unif_Med <- rtruncpareto(n = 6000, lower = 25, upper = 10000, shape = .41)
 unif_High <- rtruncpareto(n = 6000, lower = 25, upper = 8000, shape = .44)
-calc_combined_cost<-function(parole_cost_type){
+
+
+sample_a_combined_cost<-function(parole_cost_type){
   switch (parole_cost_type,
     base = return(sample(unif_Base,1)),
     low = return(sample(unif_Low,1)),
     med = return(sample(unif_Med,1)),
     high= return(sample(unif_High,1))
   )
+}
+
+calc_combined_cost <- function(combined_cost_sample, m.is_in_prison){
+  
+  if_else(m.is_in_prison == 1, 0, combined_cost_sample)
+  
 }
 
 ```
@@ -443,7 +447,7 @@ load_survival_data <- function(recid_reduction_ovr_cntrl){
 
 
 ```{r single agent function, echo=FALSE}
-sim_single_agent <- function(months,parole_cost_type) {
+sim_single_agent <- function(months, parole_cost_type) {
   
   # Define some factors
   levels.crimetype <- factor(prison_terms$offense_type)
@@ -466,8 +470,9 @@ sim_single_agent <- function(months,parole_cost_type) {
                    total_parole_costs=numeric(0)
                    )
   
-  #Combined cost(Emergency room & DWS+DHS & Shelters)
-  m.total_combined_costs<-calc_combined_cost(parole_cost_type)
+  # Combined cost (Emergency room & DWS+DHS & Shelters)
+  # We will add this in the for loop, but only want to sample once
+  combined_cost_sample <- sample_a_combined_cost(parole_cost_type)
   
   # loop through each month and see what happens			
   for (month in 1:months) {
@@ -518,6 +523,9 @@ sim_single_agent <- function(months,parole_cost_type) {
     
     # Parole
     m.total_parole_costs <- calc_total_app_costs(m.is_on_parole)
+    
+    # Combined costs (Emergency room & DWS+DHS & Shelters)
+    m.total_combined_costs <- calc_combined_cost(combined_cost_sample, m.is_in_prison)
     
     # add month to the data frame
     df[month,] <- 
@@ -600,7 +608,7 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
     # Sum things that happend to the agent
     a.prison_time <- sum(as.numeric(single_agent$is_in_prison))
     a.avg_prison_time_per_yr <- mean(by_year$total_prison_time)
-    a.months_free <- 60 - a.prison_time
+    a.months_free <- n_months - a.prison_time
     a.total_prison_costs <- sum(by_year$total_prison_costs)
     a.avg_prison_cost_per_yr <- mean(by_year$total_prison_costs)
     a.median_prison_cost_per_yr <- median(by_year$total_prison_costs)
@@ -617,8 +625,9 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
     df[agent,] <- 
       c(a.prison_time, a.avg_prison_time_per_yr, a.months_free, a.total_prison_costs, 
         a.avg_prison_cost_per_yr, a.median_prison_cost_per_yr, a.prison_cost_yr_one,
-        a.arrests, a.total_costs, a.avg_total_cost_per_yr, a.median_total_cost_per_yr,
-        a.avg_other_cost_per_yr,a.avg_combined_cost_per_yr,a.avg_parole_cost_per_yr)
+        a.arrests, a.total_costs, a.avg_total_cost_per_yr, 
+        a.median_total_cost_per_yr, a.avg_other_cost_per_yr,
+        a.avg_combined_cost_per_yr,a.avg_parole_cost_per_yr)
     
   }
   
@@ -633,7 +642,7 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
 
 
 ```{r model parameters, echo=FALSE}
-n_agents = 6000
+n_agents = 600
 n_months = 60
 ```
 
@@ -1072,12 +1081,12 @@ Given these assumptions, we estimate that a program that reduces recidivism by `
 
 ##### Pagebreak
 
-```{r, echo=FALSE}
+```{r sensitivity analysis, echo=FALSE}
 sensitivity_recid_reductions <- c(.05, .1, .15, .2, .25, .3, .35, .4)
 sensitivity_vector <- c()
 for (i in sensitivity_recid_reductions) {
   survival_rates <- load_survival_data(i)
-  multi_agent_post <- sim_multi_agents(n_agents = 10, n_months = 60,"base")
+  multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"base")
   m <- mean(multi_agent_post$avg_prison_cost_per_yr)
   sensitivity_vector <- append(sensitivity_vector, m)
 }
@@ -1086,7 +1095,7 @@ for (i in sensitivity_recid_reductions) {
 # Results: Sensitivity Analysis
 As described above, the main purpose of this model is to estimate the savings in prison costs as a function of recidivism rates. The following table shows the approximate relationship between a reduction in recidivism and the expected prison costs per parolee. What this shows is that on average, a 5% reduction in recidivism should lead to approximate cost savings of $470 per parolee per year (considering only the prison costs). 
 
-```{r, echo=FALSE}
+```{r sensitivity table, echo=FALSE}
 sensitivity_df <- data.frame(sensitivity_vector, sensitivity_recid_reductions)
 
 sensitivity_df_to_print <- sensitivity_df %>%
