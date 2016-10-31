@@ -289,6 +289,7 @@ calc_total_prison_costs <- function(m.is_in_prison) {
 
 ### The costs of crime
 # http://www.justice.utah.gov/Documents/CCJJ/Cost%20of%20Crime/Utah%20Cost%20of%20Crime%202012%20-%20Methods%20Review%20Cost.pdf
+# TODO: add defense attourneys, who were left out of the report above
 # courts
 calc_total_court_costs <- function(m.rearrested_or_not, m.crime_type){
   
@@ -575,7 +576,9 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
                    median_total_cost_per_yr=numeric(0),
                    avg_other_cost_per_yr=numeric(0),
                    avg_combined_cost_per_yr=numeric(0),
-                   avg_parole_cost_per_yr=numeric(0))
+                   avg_parole_cost_per_yr=numeric(0),
+                   avg_court_costs_per_yr=numeric(0),
+                   avg_policing_costs_per_yr=numeric(0))
   
   # loop through each month and see what happens			
   for (agent in 1:n_agents) {
@@ -602,7 +605,9 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
                 total_costs = sum(as.numeric(total_costs)),
                 total_prison_time = sum(as.numeric(is_in_prison)),
                 total_combined_costs=sum(as.numeric(total_combined_costs)),
-                total_parole_costs=sum(as.numeric(total_parole_costs))) %>% 
+                total_parole_costs=sum(as.numeric(total_parole_costs)),
+                total_court_costs = sum(as.numeric(total_court_costs)),
+                total_policing_costs = sum(as.numeric(total_policing_costs))) %>% 
       mutate(total_other_costs = total_costs - total_prison_costs)
     
     # Sum things that happend to the agent
@@ -618,19 +623,30 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
     a.avg_total_cost_per_yr <- mean(by_year$total_costs)
     a.median_total_cost_per_yr <- median(by_year$total_costs)
     a.avg_other_cost_per_yr <- mean(by_year$total_other_costs)
-    a.avg_combined_cost_per_yr<-mean(by_year$total_combined_costs)
-    a.avg_parole_cost_per_yr<-mean(by_year$total_parole_costs)
+    a.avg_combined_cost_per_yr <- mean(by_year$total_combined_costs)
+    a.avg_parole_cost_per_yr <- mean(by_year$total_parole_costs)
+    a.avg_court_costs_per_yr <- mean(by_year$total_court_costs)
+    a.avg_policing_costs_per_yr <- mean(by_year$total_policing_costs)
+    
     
     # add month to the data frame
     df[agent,] <- 
-      c(a.prison_time, a.avg_prison_time_per_yr, a.months_free, a.total_prison_costs, 
-        a.avg_prison_cost_per_yr, a.median_prison_cost_per_yr, a.prison_cost_yr_one,
+      c(a.prison_time, a.avg_prison_time_per_yr, a.months_free, 
+        a.total_prison_costs, a.avg_prison_cost_per_yr, 
+        a.median_prison_cost_per_yr, a.prison_cost_yr_one,
         a.arrests, a.total_costs, a.avg_total_cost_per_yr, 
         a.median_total_cost_per_yr, a.avg_other_cost_per_yr,
-        a.avg_combined_cost_per_yr,a.avg_parole_cost_per_yr)
+        a.avg_combined_cost_per_yr, a.avg_parole_cost_per_yr,
+        a.avg_court_costs_per_yr, a.avg_policing_costs_per_yr)
     
   }
   
+  df <- df %>% 
+    mutate(avg_law_enforcement = avg_prison_cost_per_yr +
+             avg_parole_cost_per_yr + avg_court_costs_per_yr + 
+             avg_policing_costs_per_yr,
+           avg_non_law_enforcement = avg_combined_cost_per_yr)
+           
   
   # output results
   return (df)
