@@ -67,6 +67,10 @@ library(VGAM) #Pareto distribution
 #  http://www.deseretnews.com/article/705273784/Many-Utahns-refuse-to-ride-in-ambulance.html?pg=all
 # 
 #  http://blog.bcbsnc.com/2014/04/5-emergency-room-myths-busted/
+#
+# http://cad.sagepub.com/content/early/2014/09/26/0011128714549655.abstract
+#
+#http://www.slate.com/articles/news_and_politics/crime/2015/10/why_do_so_many_prisoners_end_up_back_in_prison_a_new_study_says_maybe_they.html
 ```
 
 
@@ -658,7 +662,7 @@ sim_multi_agents <- function(n_agents, n_months,parole_cost_type){
 
 
 ```{r model parameters, echo=FALSE}
-n_agents = 600
+n_agents = 1000
 n_months = 60
 ```
 
@@ -1102,7 +1106,7 @@ sensitivity_recid_reductions <- c(.05, .1, .15, .2, .25, .3, .35, .4)
 sensitivity_vector <- c()
 for (i in sensitivity_recid_reductions) {
   survival_rates <- load_survival_data(i)
-  multi_agent_post <- sim_multi_agents(n_agents = n_agents, n_months = n_months,"base")
+  multi_agent_post <- sim_multi_agents(n_agents = 100, n_months = n_months,"base")
   m <- mean(multi_agent_post$avg_prison_cost_per_yr)
   sensitivity_vector <- append(sensitivity_vector, m)
 }
